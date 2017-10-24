@@ -1,4 +1,4 @@
-from githunt.utils.github.pull_request_status import PullRequestStatus
+from nudgebot.utils.github.pull_request_status import PullRequestStatus
 
 
 def test_pr_statuses():
