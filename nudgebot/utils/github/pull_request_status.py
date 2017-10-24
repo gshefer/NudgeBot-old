@@ -2,7 +2,6 @@
 from datetime import datetime
 import json
 import re
-import time
 
 import dateparser
 import requests
@@ -27,8 +26,6 @@ class PullRequestStatus(object):
     def __init__(self, pull_request):
 
         self._pull_request = pull_request
-        self._html = None
-        self._html_last_refresh = None
 
     @classmethod
     def get_all(cls, *args, **kwargs):
@@ -53,11 +50,7 @@ class PullRequestStatus(object):
 
     @property
     def html(self):
-        if not self._html or time.time() - self._html_last_refresh > 60:
-            self._html = requests.get(self._pull_request.html_url).content
-            self._html_last_refresh = time.time()
-
-        return self._html
+        return requests.get(self._pull_request.html_url).content
 
     @property
     def patch_url(self):
