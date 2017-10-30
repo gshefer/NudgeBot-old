@@ -28,7 +28,7 @@ class NudgeBot(object):
     def check_nudge(self, pr_status):
         judgement = pr_status.judge()
         if judgement:
-            self._send_email(self._email_addr, judgement)
+            self._send_email(pr_status.owner, judgement)
 
     def work(self):
         for pr_status in PullRequest.get_all():

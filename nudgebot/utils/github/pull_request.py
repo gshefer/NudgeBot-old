@@ -5,19 +5,58 @@ import re
 
 import dateparser
 import requests
-from enum import Enum
 
 from . import env
 from config import conf
 
 
-class PR_STATUSES(Enum):
-    # Pull request statuses as they appear in the PR title
-    # TODO: Add [<n>LP] (which is the level - not a status) and NOMERGE, NOTEST.
-    WIP = 'WIP'
-    BLOCKED = 'BLOCKED'
-    WIPTEST = 'WIPTEST'
-    RFR = 'RFR'
+class PullRequestTag(object):
+    """Represents Pull Request title tag.
+    e.g. [RFR], [WIP], ...
+    """
+    @classmethod
+    def fetch(cls, title):
+        """PullRequestTitleTag Factory - fetching tags from title.
+        Args:
+            * title (str): the Pull request title.
+        Returns: list of PullRequestTitleTag
+        """
+        assert isinstance(title, basestring)
+        detected_tags = []
+        for tag_type, data in conf().github.pull_request_title_tags.items():
+            tag_names = re.findall(data.pattern, title)
+            for tag_name in tag_names:
+                if tag_name in data.options:
+                    detected_tags.append(
+                        cls(tag_type, tag_name)
+                    )
+        return detected_tags
+
+    def __init__(self, tag_type, tag_name):
+        assert isinstance(tag_type, basestring)
+        assert isinstance(tag_name, basestring)
+        self._tag_type = tag_type
+        self._tag_name = tag_name
+
+    def __eq__(self, other):
+        return (self.type == getattr(other, 'type', None) and
+                self.name == getattr(other, 'name', None))
+
+    def __repr__(self, *args, **kwargs):
+        return '<{} type="{}" name="{}">'.format(
+            self.__class__.__name__, self.type, self.name)
+
+    @property
+    def type(self):
+        return self._tag_type
+
+    @property
+    def name(self):
+        return self._tag_name
+
+    @property
+    def json(self):
+        return {'type': self.type, 'name': self.name}
 
 
 class PullRequest(object):
@@ -63,7 +102,7 @@ class PullRequest(object):
 
     @property
     def state_history(self):
-        # Returns: {<date>: <state>, ...}
+        # TODO: Returns: {<date>: <state>, ...}
         pass
 
     @property
@@ -108,8 +147,8 @@ class PullRequest(object):
         return self._json_data.title
 
     @property
-    def status(self):
-        return re.findall(conf().github.title_status_pattern, self.title)
+    def tags(self):
+        return PullRequestTag.fetch(self.title)
 
     @property
     def age(self):
@@ -163,7 +202,7 @@ class PullRequest(object):
             'number': self.number,
             'owner': self.owner.name or self.owner.login,
             'title': self.title,
-            'status': self.status,
+            'tags': [tag.json for tag in self.tags],
             'age': {
                 'days': days_ago,
                 'hours': hours_ago
