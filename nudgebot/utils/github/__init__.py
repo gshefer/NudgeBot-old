@@ -11,6 +11,8 @@ class env(object):
     def __init__(self):
 
         login_info = conf().github.login
-        self.GIT = Github(login_info.user, login_info.password)
-        self.ORG = self.GIT.get_organization(conf().github.org)
-        self.REPO = self.ORG.get_repo(conf().github.repo)
+        self.GIT = Github(client_id=login_info.client_id, client_secret=login_info.client_secret)
+        self.repos = []
+        for org_repo in conf().github.repos:
+            org_nm, repo_nm = org_repo.split('/')
+            self.repos.append(self.GIT.get_organization(org_nm).get_repo(repo_nm))
