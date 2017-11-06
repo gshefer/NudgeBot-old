@@ -3,6 +3,8 @@
 .settings/*
 *.pyc
 config.yaml
+credentials.yaml
 .env
 .cache
+doc_data.yaml
 

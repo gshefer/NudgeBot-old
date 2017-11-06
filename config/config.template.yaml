@@ -2,27 +2,9 @@ github:
   repos: [
     'organization/repository'
   ]
-  login:
-    client_id: <client_id>
-    client_secret: <client_secret>
-  pull_request_title_tags:
-    states:
-      pattern: '\[(\w+)\]'
-      options:
-        - 'WIP'
-        - 'BLOCKED'
-        - 'WIPTEST'
-        - 'RFR'
-    tags:
-      pattern: '\[(\w+)\]'
-      options:
-        - 'NOTEST'
-        - 'NOMERGE'
-        - '1LP'
-        - '2LP'
-        - '3LP'
+  pull_request_title_tag:
+    format: '[{}]'
+    pattern: '\[(\w+)\]'
   pr_inactivity_timeout:
     days: 2
     hours: 0
-email_addr: <the_bot_email_address>
-
