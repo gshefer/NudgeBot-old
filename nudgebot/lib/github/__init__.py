@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 
 from github import Github
@@ -33,13 +34,32 @@ class USER_TYPES(Enum):
     REVIEWER = 'Reviewer'
 
 
+def action_run_wrapper(run_func):
+    def wrapped(self):
+        if not self.is_done():
+            self.ACTIONS_LOG.append(self)
+            self.done_at = datetime.now()
+            return run_func(self)
+    return wrapped
+
+
 class Action(object):
     """An abstract class for action"""
-    USER_TYPE = None  # The user type (USER_TYPES)
-    SINGLE_RUN = True  # Define whether this action is a single run or could be
-    #                    run multiple times
+    ACTIONS_LOG = []
+
+    def __init__(self, user):
+        self._user = user
 
     def run(self):
+        if self._user is not USER_TYPES.BOT:
+            # TODO: Define appropriate exception (Cannot run action of other users)
+            raise Exception()
+        if not self.is_done():
+            self.ACTIONS_LOG.append(self)
+            self.done_at = datetime.now()
+            return self.action()
+
+    def action(self):
         raise NotImplementedError()
 
     def is_done(self):
@@ -47,20 +67,58 @@ class Action(object):
 
 
 class PullRequestTagSet(Action):
-    SINGLE_RUN = False
 
-    def __init__(self, pull_request, user, *tags, **options):
+    def __init__(self, pull_request, user, *tags):
         self._pull_request = pull_request
-        self._user = user
         self._tags = tags
-        self._options = options
+        super(PullRequestTagSet, self).__init__(user)
 
-    def run(self):
-        self._pull_request.set_tags(*self._tags, **self._options)
+    def action(self):
+        self._pull_request.tags = self._tags
 
     def is_done(self):
-        pr_tags = self._pull_request.tags
-        return (
-            pr_tags == self._tags if self._options.get('absolute_set')
-            else bool(all([tag in pr_tags for tag in self.tags]))
-        )
+        return self._tags == self._pull_request.tags
+
+
+class PullRequestTagRemove(Action):
+
+    def __init__(self, pull_request, user, *tags):
+        self._pull_request = pull_request
+        self._tags = tags
+        super(PullRequestTagRemove, self).__init__(user)
+
+    def action(self):
+        self._pull_request.remove_tags(*self._tags)
+
+    def is_done(self):
+        return self._tags == self._pull_request.tags
+
+
+class AddReviewers(Action):
+
+    def __init__(self, pull_request, user, *reviewers):
+        self._pull_request = pull_request
+        self._reviewers = reviewers
+        super(AddReviewers, self).__init__(user)
+
+    def action(self):
+        self._pull_request.add_reviewers(self._reviewers)
+
+    def is_done(self):
+        reviewers = self._pull_request.reviewers
+        return all(map(lambda reviewer: reviewer in reviewers, self._reviewers))
+
+
+class RemoveReviewers(Action):
+
+    def __init__(self, pull_request, user, *reviewers):
+        self._pull_request = pull_request
+        self._reviewers = reviewers
+        super(RemoveReviewers, self).__init__(user)
+
+    def action(self):
+        self._pull_request.remove_reviewers(self._reviewers)
+
+    def is_done(self):
+        reviewers = self._pull_request.reviewers
+        return all(map(lambda reviewer: reviewer not in reviewers, self._reviewers))

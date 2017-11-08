@@ -9,7 +9,6 @@ import requests
 from . import env
 from config import config
 from common import ExtendedEnum
-from __builtin__ import classmethod
 
 
 class PRtag(ExtendedEnum):
@@ -185,10 +184,52 @@ class PullRequest(object):
             )
         )
 
+    def remove_tags(self, *tags):
+        return self._pr_handler.edit(
+            '{} {}'.format(
+                ''.join([t.raw for t in tags if t not in self.tags]),
+                re.split(config().config.github.pull_request_title_tag.pattern,
+                         self.title)[-1].strip()
+            ).strip()
+        )
+
     @tags.deleter
     def tags(self):
-        return self._pr_handler.edit(
-            re.split(config().config.github.pull_request_title_tag.pattern, self.title)[-1].strip())
+        return self.remove_tags(self.tags)
+
+    @property
+    def reviewers(self):
+        return [login.login for login in self._pr_handler.get_reviewer_requests()]
+
+    def add_reviewers(self, reviewers):
+        """Adding the reviewers to the pull request - this is workaround until
+        https://github.com/PyGithub/PyGithub/pull/598 is merged.
+        :calls: `POST /repos/:owner/:repo/pulls/:number/requested_reviewers
+                <https://developer.github.com/v3/pulls/review_requests/>`_
+        :param reviewers: (logins) list of strings
+        """
+        status, _, _ = self._pr_handler._requester.requestJson(
+            "POST",
+            self.url + "/requested_reviewers",
+            input={'reviewers': reviewers},
+            headers={'Accept': 'application/vnd.github.thor-preview+json'}
+        )
+        return status == 201
+
+    def remove_reviewers(self, reviewers):
+        """Removing the reviewers from the pull request - this is workaround until
+        https://github.com/PyGithub/PyGithub/pull/598 is merged.
+        :calls: `DELETE /repos/:owner/:repo/pulls/:number/requested_reviewers
+                <https://developer.github.com/v3/pulls/review_requests/>`_
+        :param reviewers: (logins) list of strings
+        """
+        status, _, _ = self._pr_handler._requester.requestJson(
+            "DELETE",
+            self.url + "/requested_reviewers",
+            input={'reviewers': reviewers},
+            headers={'Accept': 'application/vnd.github.thor-preview+json'}
+        )
+        return status == 200
 
     @property
     def age(self):

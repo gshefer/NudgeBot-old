@@ -4,6 +4,11 @@ import pytest
 
 from nudgebot.lib.github.pull_request import PullRequest, PullRequestTag, PRtag,\
     PRstate
+from nudgebot.lib.github import PullRequestTagSet, USER_TYPES,\
+    PullRequestTagRemove, AddReviewers, RemoveReviewers
+
+
+REVIEWERS_LOGIN = ['jaryn']
 
 
 @pytest.fixture(scope='module')
@@ -24,13 +29,26 @@ def test_pull_requests(all_pull_requests):
         print pr.json  # Calling for most of the functions
 
 
-@pytest.mark.parametrize('execution_number', range(7))
+@pytest.mark.parametrize('execution_number', range(5))
 def test_pull_request_title_tags(all_pull_requests, random_tags, execution_number):
     """Testing the functionality of setting/removing tags in pull request titles"""
     rand_pr = random.choice(all_pull_requests)
-    rand_pr.tags = random_tags
+    action = PullRequestTagSet(rand_pr, USER_TYPES.BOT, *random_tags)
+    action.run()
     found_tags = rand_pr.tags
     assert found_tags == random_tags
-    del rand_pr.tags
+    action = PullRequestTagRemove(rand_pr, USER_TYPES.BOT, *rand_pr.tags)
+    action.run()
     found_tags = rand_pr.tags
     assert not found_tags
+
+
+@pytest.mark.parametrize('execution_number', range(3))
+def test_request_reviewer(all_pull_requests, execution_number):
+    rand_pr = random.choice(all_pull_requests)
+    action = AddReviewers(rand_pr, USER_TYPES.BOT, *REVIEWERS_LOGIN)
+    action.run()
+    assert REVIEWERS_LOGIN[-1] in rand_pr.reviewers
+    action = RemoveReviewers(rand_pr, USER_TYPES.BOT, *REVIEWERS_LOGIN)
+    action.run()
+    assert REVIEWERS_LOGIN[-1] not in rand_pr.reviewers
