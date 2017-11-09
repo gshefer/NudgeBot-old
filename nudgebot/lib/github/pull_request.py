@@ -7,6 +7,7 @@ import dateparser
 import requests
 
 from . import env
+from .users import User, ContributorUser, ReviewerUser
 from config import config
 from common import ExtendedEnum
 
@@ -84,10 +85,13 @@ class PullRequest(object):
     """Pull Request includes a bunch of the properties and the information
     about the pull request.
     """
-    def __init__(self, repo, json_data):
+    def __init__(self, repo, pr_handler):
 
         self.repo = repo
-        self._pr_handler = json_data
+        self._pr_handler = pr_handler
+
+    def __getattr__(self, name):
+        return getattr(self._pr_handler, name)
 
     @classmethod
     def get_all(cls, **filters):
@@ -158,11 +162,6 @@ class PullRequest(object):
         return self._pr_handler.number
 
     @property
-    def user(self):
-        return getattr(self._pr_handler.user, 'name',
-                       self._pr_handler.user.login)
-
-    @property
     def title(self):
         return self._pr_handler.title
 
@@ -199,19 +198,19 @@ class PullRequest(object):
 
     @property
     def reviewers(self):
-        return [login.login for login in self._pr_handler.get_reviewer_requests()]
+        return [ReviewerUser(user.login) for user in self._pr_handler.get_reviewer_requests()]
 
     def add_reviewers(self, reviewers):
         """Adding the reviewers to the pull request - this is workaround until
         https://github.com/PyGithub/PyGithub/pull/598 is merged.
         :calls: `POST /repos/:owner/:repo/pulls/:number/requested_reviewers
                 <https://developer.github.com/v3/pulls/review_requests/>`_
-        :param reviewers: (logins) list of strings
+        :param reviewers: (logins) list of strings or User
         """
         status, _, _ = self._pr_handler._requester.requestJson(
             "POST",
             self.url + "/requested_reviewers",
-            input={'reviewers': reviewers},
+            input={'reviewers': [rev.login if isinstance(rev, User) else rev for rev in reviewers]},
             headers={'Accept': 'application/vnd.github.thor-preview+json'}
         )
         return status == 201
@@ -226,7 +225,7 @@ class PullRequest(object):
         status, _, _ = self._pr_handler._requester.requestJson(
             "DELETE",
             self.url + "/requested_reviewers",
-            input={'reviewers': reviewers},
+            input={'reviewers': [rev.login if isinstance(rev, User) else rev for rev in reviewers]},
             headers={'Accept': 'application/vnd.github.thor-preview+json'}
         )
         return status == 200
@@ -264,7 +263,7 @@ class PullRequest(object):
 
     @property
     def owner(self):
-        return self._pr_handler.user
+        return ContributorUser(self._pr_handler.user)
 
     @property
     def last_code_update(self):
