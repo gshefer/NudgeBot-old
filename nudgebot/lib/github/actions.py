@@ -4,7 +4,7 @@ from nudgebot.lib.github.users import BotUser
 
 
 class Action(object):
-    """An abstract class for action"""
+    """A base class for action"""
     ACTIONS_LOG = []
 
     def __init__(self, user):
@@ -92,9 +92,31 @@ class CreateIssueComment(Action):
         super(CreateIssueComment, self).__init__(user)
 
     def action(self):
-        self._pull_request.create_issue_comment(self._body)
+        return self._pull_request.create_issue_comment(self._body)
 
     def is_done(self):
         return bool(filter(lambda comm: (self._body == comm.body
                                          and self._user.login == comm.user.login),
                            self._pull_request.get_issue_comments()))
+
+
+class CreateReviewComment(Action):
+
+    def __init__(self, pull_request, user, body, path=None, position=None):
+        self._pull_request = pull_request
+        self._body = body
+        self._path = path
+        self._position = position
+        super(CreateReviewComment, self).__init__(user)
+
+    def action(self):
+        commit = list(self._pull_request.get_commits())[-1]
+        return self._pull_request.create_review_comment(
+            self._body, commit, self._path, self._position)
+
+    def is_done(self):
+        return bool(filter(lambda comm: (self._body == comm.body
+                                         and self._user.login == comm.user.login
+                                         and self._path == comm.path
+                                         and self._position == comm.position),
+                           self._pull_request.get_review_comments()))

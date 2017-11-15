@@ -6,9 +6,8 @@ from nudgebot.lib.github.pull_request import (PullRequest, PullRequestTag, PRtag
                                               PRstate)
 from nudgebot.lib.github.actions import (PullRequestTagSet, PullRequestTagRemove,
                                          AddReviewers, RemoveReviewers, CreateIssueComment,
-                                         BotUser)
+                                         BotUser, CreateReviewComment)
 from nudgebot.lib.github.users import ReviewerUser
-from config import config
 
 
 REVIEWERS_LOGIN = [ReviewerUser('jaryn')]
@@ -62,10 +61,19 @@ def test_create_issue_comment(all_pull_requests, execution_number):
     rand_pr = random.choice(all_pull_requests)
     body = 'This is comment number {}!'.format(execution_number)
     action = CreateIssueComment(rand_pr, BotUser(), body)
-    action.run()
+    comment = action.run()
     assert action.is_done()
-    [
-        comment for comment in rand_pr.get_issue_comments()
-        if comment.body == body and comment.user.login == config().credentials.github.username
-    ].pop().delete()
+    comment.delete()
+    assert not action.is_done()
+
+
+@pytest.mark.parametrize('execution_number', range(3))
+def test_create_review_comment(all_pull_requests, execution_number):
+    rand_pr = random.choice(all_pull_requests)
+    body = 'This is comment number {}!'.format(execution_number)
+    path = random.choice(list(rand_pr.get_commits())[-1].files).filename
+    action = CreateReviewComment(rand_pr, BotUser(), body, path, 1)
+    comment = action.run()
+    assert action.is_done()
+    comment.delete()
     assert not action.is_done()
