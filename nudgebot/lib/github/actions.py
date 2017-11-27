@@ -100,6 +100,40 @@ class CreateIssueComment(Action):
                            self._pull_request.get_issue_comments()))
 
 
+class ReviewStateActionBase(Action):
+    STATE = 'PENDING'
+
+    def __init__(self, pull_request, user, body=None):
+        self._pull_request = pull_request
+        self._body = body
+        super(ReviewStateActionBase, self).__init__(user)
+
+    @property
+    def event(self):
+        return getattr(self, 'EVENT', self.STATE)
+
+    def action(self):
+        return self._pull_request.create_review(
+            list(self._pull_request.get_commits())[-1], self._body, self.event)
+
+    def is_done(self):
+        all_reviewes = filter(
+            lambda comm: self._user.login == comm.user.login,
+            self._pull_request.get_reviews()
+        )
+        return not all_reviewes or self.STATE == all_reviewes[-1].state
+
+
+class RequestChanges(ReviewStateActionBase):
+    EVENT = 'REQUEST_CHANGES'
+    STATE = 'CHANGES_REQUESTED'
+
+
+class Approve(ReviewStateActionBase):
+    EVENT = 'APPROVE'
+    STATE = 'APPROVED'
+
+
 class CreateReviewComment(Action):
 
     def __init__(self, pull_request, user, body, path=None, position=None):

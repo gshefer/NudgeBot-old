@@ -200,6 +200,35 @@ class PullRequest(object):
     def reviewers(self):
         return [ReviewerUser(user.login) for user in self._pr_handler.get_reviewer_requests()]
 
+    def create_review(self, commit, body, event=None, comments=None):
+        """
+
+        this is workaround until
+        https://github.com/PyGithub/PyGithub/pull/662 is merged.
+
+        :calls: `POST /repos/:owner/:repo/pulls/:number/reviews
+                <https://developer.github.com/v3/pulls/reviews/>`_
+        :param commit: github.Commit.Commit
+        :param body: string
+        :param event: string
+        :param comments: list
+        :rtype: :class:`github.PaginatedList.PaginatedList` of
+                :class:`github.PullRequestReview.PullRequestReview`
+        """
+        assert isinstance(body, basestring), body
+        assert event is None or isinstance(event, basestring), event
+        assert comments is None or isinstance(comments, list), comments
+        post_parameters = {'commit_id': commit.sha, 'body': body}
+        post_parameters['event'] = 'PENDING' if event is None else event
+        if comments is None:
+            post_parameters['comments'] = []
+        headers, data = self._requester.requestJsonAndCheck(
+            "POST",
+            self.url + "/reviews",
+            input=post_parameters
+        )
+        self._useAttributes(data)
+
     def add_reviewers(self, reviewers):
         """Adding the reviewers to the pull request - this is workaround until
         https://github.com/PyGithub/PyGithub/pull/598 is merged.
