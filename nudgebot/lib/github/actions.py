@@ -7,7 +7,8 @@ class Action(object):
     """A base class for action"""
     ACTIONS_LOG = []
 
-    def __init__(self, user):
+    def __init__(self, pull_request, user):
+        self._pull_request = pull_request
         self._user = user
 
     def run(self):
@@ -29,9 +30,8 @@ class Action(object):
 class PullRequestTagSet(Action):
 
     def __init__(self, pull_request, user, *tags):
-        self._pull_request = pull_request
         self._tags = tags
-        super(PullRequestTagSet, self).__init__(user)
+        super(PullRequestTagSet, self).__init__(pull_request, user)
 
     def action(self):
         self._pull_request.tags = self._tags
@@ -43,9 +43,8 @@ class PullRequestTagSet(Action):
 class PullRequestTagRemove(Action):
 
     def __init__(self, pull_request, user, *tags):
-        self._pull_request = pull_request
         self._tags = tags
-        super(PullRequestTagRemove, self).__init__(user)
+        super(PullRequestTagRemove, self).__init__(pull_request, user)
 
     def action(self):
         self._pull_request.remove_tags(*self._tags)
@@ -57,9 +56,8 @@ class PullRequestTagRemove(Action):
 class AddReviewers(Action):
 
     def __init__(self, pull_request, user, *reviewers):
-        self._pull_request = pull_request
         self._reviewers = reviewers
-        super(AddReviewers, self).__init__(user)
+        super(AddReviewers, self).__init__(pull_request, user)
 
     def action(self):
         self._pull_request.add_reviewers(self._reviewers)
@@ -72,9 +70,8 @@ class AddReviewers(Action):
 class RemoveReviewers(Action):
 
     def __init__(self, pull_request, user, *reviewers):
-        self._pull_request = pull_request
         self._reviewers = reviewers
-        super(RemoveReviewers, self).__init__(user)
+        super(RemoveReviewers, self).__init__(pull_request, user)
 
     def action(self):
         self._pull_request.remove_reviewers(self._reviewers)
@@ -87,9 +84,8 @@ class RemoveReviewers(Action):
 class CreateIssueComment(Action):
 
     def __init__(self, pull_request, user, body):
-        self._pull_request = pull_request
         self._body = body
-        super(CreateIssueComment, self).__init__(user)
+        super(CreateIssueComment, self).__init__(pull_request, user)
 
     def action(self):
         return self._pull_request.create_issue_comment(self._body)
@@ -100,13 +96,12 @@ class CreateIssueComment(Action):
                            self._pull_request.get_issue_comments()))
 
 
-class ReviewStateActionBase(Action):
+class _ReviewStateActionBase(Action):
     STATE = 'PENDING'
 
     def __init__(self, pull_request, user, body=None):
-        self._pull_request = pull_request
         self._body = body
-        super(ReviewStateActionBase, self).__init__(user)
+        super(_ReviewStateActionBase, self).__init__(pull_request, user)
 
     @property
     def event(self):
@@ -124,12 +119,12 @@ class ReviewStateActionBase(Action):
         return not all_reviewes or self.STATE == all_reviewes[-1].state
 
 
-class RequestChanges(ReviewStateActionBase):
+class RequestChanges(_ReviewStateActionBase):
     EVENT = 'REQUEST_CHANGES'
     STATE = 'CHANGES_REQUESTED'
 
 
-class Approve(ReviewStateActionBase):
+class Approve(_ReviewStateActionBase):
     EVENT = 'APPROVE'
     STATE = 'APPROVED'
 
@@ -137,11 +132,10 @@ class Approve(ReviewStateActionBase):
 class CreateReviewComment(Action):
 
     def __init__(self, pull_request, user, body, path=None, position=None):
-        self._pull_request = pull_request
         self._body = body
         self._path = path
         self._position = position
-        super(CreateReviewComment, self).__init__(user)
+        super(CreateReviewComment, self).__init__(pull_request, user)
 
     def action(self):
         commit = list(self._pull_request.get_commits())[-1]
@@ -154,3 +148,16 @@ class CreateReviewComment(Action):
                                          and self._path == comm.path
                                          and self._position == comm.position),
                            self._pull_request.get_review_comments()))
+
+
+class EditDescription(Action):
+
+    def __init__(self, pull_request, user, description):
+        self._description = description
+        super(EditDescription, self).__init__(pull_request, user)
+
+    def action(self):
+        return self._pull_request.edit(body=self._description)
+
+    def is_done(self):
+        return self._pull_request.description == self._description

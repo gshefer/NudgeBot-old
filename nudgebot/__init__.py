@@ -27,16 +27,12 @@ class NudgeBot(object):
         smtpObj = smtplib.SMTP('localhost')
         smtpObj.sendmail(self._email_addr, receivers, msg.as_string())
 
-    def check_nudge(self, pr_status):
-        judgement = pr_status.judge()
-        if judgement:
-            self.send_email(pr_status.owner.email,
-                            'Pull Requests that requires your attention',
-                            judgement)
+    def process(self, pr_status):
+        pass
 
     def work(self):
         for pr_status in PullRequest.get_all():
-            self.check_nudge(pr_status)
+            self.process(pr_status)
 
     def run(self):
         while True:

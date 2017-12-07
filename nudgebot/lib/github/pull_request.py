@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import timedelta, datetime
+from datetime import datetime
 import json
 import re
 
@@ -90,6 +90,12 @@ class PullRequest(object):
         self.repo = repo
         self._pr_handler = pr_handler
 
+    def __repr__(self, *args, **kwargs):
+        return '<{} title={} user={} tags={}>'.format(
+            self.__class__.__name__, self.title, self.user.login,
+            ''.join([tag.raw for tag in self.tags])
+        )
+
     def __getattr__(self, name):
         return getattr(self._pr_handler, name)
 
@@ -112,42 +118,22 @@ class PullRequest(object):
                 prs.append(cls(repo, pr))
         return prs
 
-    def judge(self):
-        lrc = self.last_review_comment
-        if not lrc:
-            return
-        pr_inactivity_timeout = timedelta(config().config.github.pr_inactivity_timeout.days,
-                                          config().config.github.pr_inactivity_timeout.hours)
-        pr_inactivity_time = datetime.now() - lrc.created_at
-        if pr_inactivity_time > pr_inactivity_timeout:
-            return ('PR#{} is waiting for review for {} days and {} hours: {}'
-                    .format(self.number, pr_inactivity_time.days,
-                            pr_inactivity_time.seconds / 3600, self.url))
-
     @property
     def state_history(self):
         # TODO: Returns: {<date>: <state>, ...}
         pass
 
     @property
+    def description(self):
+        return self._pr_handler.body
+
+    @property
     def json_data(self):
         return self._pr_handler
 
     @property
-    def url(self):
-        return self.json_data.url
-
-    @property
     def html(self):
         return requests.get(self._pr_handler.html_url).content
-
-    @property
-    def patch_url(self):
-        return self._pr_handler.patch_url
-
-    @property
-    def diff_url(self):
-        return self._pr_handler.diff_url
 
     @property
     def patch(self):
@@ -156,14 +142,6 @@ class PullRequest(object):
     @property
     def diff(self):
         return requests.get(self._pr_handler.diff_url).content.encode('UTF-8')
-
-    @property
-    def number(self):
-        return self._pr_handler.number
-
-    @property
-    def title(self):
-        return self._pr_handler.title
 
     @property
     def tags(self):
