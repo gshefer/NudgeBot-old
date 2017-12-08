@@ -4,7 +4,11 @@ from email.mime.multipart import MIMEMultipart
 from email.utils import COMMASPACE, formatdate
 
 from config import config
-from nudgebot.lib.github.pull_request import PullRequest
+from nudgebot.lib.github.pull_request import PullRequest, PullRequestTag,\
+    PRstate
+from nudgebot.lib.github.cases import NoPullRequestStateSet
+from nudgebot.lib.github.actions import PullRequestTagSet, CreateIssueComment
+from nudgebot.lib.github.users import BotUser
 
 
 class NudgeBot(object):
@@ -27,8 +31,17 @@ class NudgeBot(object):
         smtpObj = smtplib.SMTP('localhost')
         smtpObj.sendmail(self._email_addr, receivers, msg.as_string())
 
-    def process(self, pr_status):
-        pass
+    def process(self, pull_request):
+        actions_to_perfoem = []
+        if NoPullRequestStateSet(pull_request).state:
+            actions_to_perfoem.extend([
+                PullRequestTagSet(pull_request, BotUser(), PullRequestTag(PRstate.WIP)),
+                CreateIssueComment(pull_request, BotUser(),
+                    'Please add a state to the PR title - setting state as [WIP]')
+            ])
+        for act in actions_to_perfoem:
+            act.run()
+            
 
     def work(self):
         for pr_status in PullRequest.get_all():
