@@ -1,10 +1,13 @@
 github:
-  repos: [
-    'organization/repository'
-  ]
+  repos:
+    - 
+        org: <organization>
+        repo: <repository>
+        reviewers:
+          - # Level 1
+            - <reviewer_level1>
+          - # Level 2
+            - <reviewer_level2>
   pull_request_title_tag:
     format: '[{}]'
     pattern: '\[(\w+)\]'
-  pr_inactivity_timeout:
-    days: 2
-    hours: 0

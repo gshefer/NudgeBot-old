@@ -5,7 +5,7 @@ from config import config
 from common import Singleton
 
 
-class env(object):
+class GithubEnv(object):
 
     __metaclass__ = Singleton
 
@@ -15,10 +15,10 @@ class env(object):
         self.GIT = Github(login_info.get('username'), login_info.get('password'),
                           client_id=login_info.client_id, client_secret=login_info.client_secret)
         self.repos = []
-        for org_repo in config().config.github.repos:
-            org_nm, repo_nm = org_repo.split('/')
+        for repo in config().config.github.repos:
             try:
-                org = self.GIT.get_organization(org_nm)
+                org = self.GIT.get_organization(repo.org)
             except UnknownObjectException:
-                org = self.GIT.get_user(org_nm)
-            self.repos.append(org.get_repo(repo_nm))
+                org = self.GIT.get_user(repo.org)
+            self.repos.append(org.get_repo(repo.repo))
+            setattr(self.repos[-1], 'maintainers', repo.reviewers)

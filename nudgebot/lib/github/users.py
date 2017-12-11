@@ -1,6 +1,6 @@
 from cached_property import cached_property
 
-from . import env
+from . import GithubEnv
 from github.NamedUser import NamedUser
 from common import Singleton
 from config import config
@@ -18,8 +18,12 @@ class User(object):
     def user(self):
         if isinstance(self._user, NamedUser):
             return self._user
-        self._user = env().GIT.get_user(self._user)
+        self._user = GithubEnv().GIT.get_user(self._user)
         return self._user
+
+    @cached_property
+    def email(self):
+        return self.user.email
 
     @cached_property
     def login(self):

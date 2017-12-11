@@ -25,6 +25,11 @@ class AttributeDict(dict):
             for key, value in obj.items():
                 attr_dict[key] = cls.attributize_dict(value)
             return attr_dict
+        elif isinstance(obj, (list, tuple)):
+            nested_list = list()
+            for value in obj:
+                nested_list.append(cls.attributize_dict(value))
+            return nested_list
         return obj
 
 

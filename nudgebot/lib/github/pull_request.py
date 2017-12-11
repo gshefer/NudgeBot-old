@@ -3,10 +3,11 @@ from datetime import datetime
 import json
 import re
 
+from cached_property import cached_property
 import dateparser
 import requests
 
-from . import env
+from . import GithubEnv
 from .users import User, ContributorUser, ReviewerUser
 from config import config
 from common import ExtendedEnum
@@ -25,6 +26,57 @@ class PRstate(ExtendedEnum):
     BLOCKED = 'BLOCKED'
     WIPTEST = 'WIPTEST'
     RFR = 'RFR'
+
+
+class ReviewCommentThread(object):
+
+    def __init__(self, pull_request, comments):
+        assert isinstance(comments, list) and len(comments)
+        self._comments = comments
+        self._pull_request = pull_request
+
+    def __repr__(self, *args, **kwargs):
+        return '<{} pull_request={} path="{}" line="{}">'.format(
+            self.__class__.__name__, self._pull_request.number, self.path, self.line)
+
+    def add_comment(self, comment):
+        # TODO: Raise if the comment is not in the same pr/path/line
+        self._comments.append(comment)
+
+    @property
+    def issue_comments(self):
+        return sorted(self._comments, key=lambda c: c.created_at)
+
+    @property
+    def first_comment(self):
+        return self.issue_comments[0]
+
+    @property
+    def last_comment(self):
+        return self.issue_comments[-1]
+
+    @cached_property
+    def path(self):
+        return self._comments[0].path
+
+    @cached_property
+    def line(self):
+        return self._comments[0].position or self._comments[0].original_position
+
+    @property
+    def outdated(self):
+        return self._comments[0].position is None
+
+    @classmethod
+    def fetch_threads(cls, pull_request):
+        threads = {}
+        for comment in pull_request.review_comments:
+            key = '{}:{}'.format(comment.path, comment.original_position)
+            if key in threads:
+                threads[key].add_comment(comment)
+            else:
+                threads[key] = cls(pull_request, [comment])
+        return threads.values()
 
 
 class PullRequestTag(object):
@@ -109,7 +161,7 @@ class PullRequest(object):
         """
         state = filters.get('state', 'open')
         logins = [login.lower() for login in filters.get('logins', [])]
-        repos = filters.get('repos', env().repos)
+        repos = filters.get('repos', GithubEnv().repos)
         prs = []
         for repo in repos:
             for pr in repo.get_pulls(state=state):
@@ -119,17 +171,12 @@ class PullRequest(object):
         return prs
 
     @property
-    def state_history(self):
-        # TODO: Returns: {<date>: <state>, ...}
-        pass
-
-    @property
     def description(self):
         return self._pr_handler.body
 
     @property
-    def json_data(self):
-        return self._pr_handler
+    def commits(self):
+        return self.get_commits()
 
     @property
     def html(self):
@@ -175,8 +222,15 @@ class PullRequest(object):
         return self.remove_tags(self.tags)
 
     @property
+    def reviews(self):
+        return self.get_reviews()
+
+    @property
     def reviewers(self):
-        return [ReviewerUser(user.login) for user in self._pr_handler.get_reviewer_requests()]
+        reviewers = []
+        for review in self.reviews:
+            reviewers.append(ReviewerUser(review.user.login))
+        return list(set(reviewers).union())
 
     def create_review(self, commit, body, event=None, comments=None):
         """
@@ -189,7 +243,7 @@ class PullRequest(object):
         :param commit: github.Commit.Commit
         :param body: string
         :param event: string
-        :param comments: list
+        :param issue_comments: list
         :rtype: :class:`github.PaginatedList.PaginatedList` of
                 :class:`github.PullRequestReview.PullRequestReview`
         """
@@ -199,7 +253,7 @@ class PullRequest(object):
         post_parameters = {'commit_id': commit.sha, 'body': body}
         post_parameters['event'] = 'PENDING' if event is None else event
         if comments is None:
-            post_parameters['comments'] = []
+            post_parameters['issue_comments'] = []
         headers, data = self._requester.requestJsonAndCheck(
             "POST",
             self.url + "/reviews",
@@ -249,13 +303,17 @@ class PullRequest(object):
         return comments
 
     @property
+    def review_comment_threads(self):
+        return ReviewCommentThread.fetch_threads(self)
+
+    @property
     def last_review_comment(self):
         review_comments = self.review_comments
         if review_comments:
             return max(review_comments, key=lambda item: item.updated_at)
 
     @property
-    def comments(self):
+    def issue_comments(self):
         comments = [c for c in self._pr_handler.get_issue_comments()]
         comments.sort(key=lambda c: c.updated_at)
         return comments
@@ -275,6 +333,10 @@ class PullRequest(object):
     @property
     def last_code_update(self):
         return dateparser.parse(list(self._pr_handler.get_commits()).pop().last_modified)
+
+    @property
+    def last_update(self):
+        return self._pr_handler.updated_at
 
     @property
     def json(self):

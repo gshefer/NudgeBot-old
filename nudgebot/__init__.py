@@ -1,17 +1,22 @@
+# -*- coding: utf-8 -*-
+import md5
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import COMMASPACE, formatdate
 
 from config import config
-from nudgebot.lib.github.pull_request import PullRequest, PullRequestTag,\
-    PRstate
-from nudgebot.lib.github.cases import NoPullRequestStateSet
-from nudgebot.lib.github.actions import PullRequestTagSet, CreateIssueComment
-from nudgebot.lib.github.users import BotUser
+from common import Singleton
+from nudgebot.lib.github.pull_request import PullRequest
+from nudgebot.lib.github.actions import Action, RUN_TYPES
+from nudgebot.db import db
+from nudgebot.lib.github.pull_request_stat_collection import PullRequestStatCollection
+from nudgebot.flow import FLOW
 
 
 class NudgeBot(object):
+
+    __metaclass__ = Singleton
 
     def __init__(self):
         self._email_addr = config().credentials.email.address
@@ -31,21 +36,48 @@ class NudgeBot(object):
         smtpObj = smtplib.SMTP('localhost')
         smtpObj.sendmail(self._email_addr, receivers, msg.as_string())
 
-    def process(self, pull_request):
-        actions_to_perfoem = []
-        if NoPullRequestStateSet(pull_request).state:
-            actions_to_perfoem.extend([
-                PullRequestTagSet(pull_request, BotUser(), PullRequestTag(PRstate.WIP)),
-                CreateIssueComment(pull_request, BotUser(),
-                    'Please add a state to the PR title - setting state as [WIP]')
-            ])
-        for act in actions_to_perfoem:
-            act.run()
-            
+    def add_record(self, cases_checksum, action, action_properties):
+        db().records.insert_one({
+            'case_checksum': cases_checksum,
+            'action': {
+                'checksum': action.hash,
+                'name': action.name,
+                'properties': action_properties
+            }
+        })
+
+    def _process_flow(self, stat_collection, tree, cases_checksum=None):
+        if not cases_checksum:
+            cases_checksum = md5.new()
+        if isinstance(tree, dict):
+            for case, node in tree.items():
+                case.define_stat_collection(stat_collection)
+                if case.state:
+                    cases_checksum.update(case.hash)
+                    return self._process_flow(stat_collection, node, cases_checksum)
+        elif isinstance(tree, (list, tuple)):
+            for action in tree:
+                self._process_flow(stat_collection, action, cases_checksum)
+        elif isinstance(tree, Action):
+            action = tree
+            action.define_stat_collection(stat_collection)
+            is_done = (action.run_type != RUN_TYPES.ALWAYS or
+                       [record for record in db().records.find({
+                           'case_checksum': cases_checksum.hexdigest(),
+                           'action': {'checksum': action.hash}})
+                        ]
+                       )
+            if not is_done:
+                action_properties = action.run()
+                self.add_record(cases_checksum.hexdigest(), action, action_properties)
+
+    def process(self, pull_request_stat_collection):
+        return self._process_flow(pull_request_stat_collection, FLOW)
 
     def work(self):
         for pr_status in PullRequest.get_all():
-            self.process(pr_status)
+            pr_stat = PullRequestStatCollection(pr_status)
+            self.process(pr_stat)
 
     def run(self):
         while True:
