@@ -16,6 +16,10 @@ class PullRequestStatCollection(object):
         return self._pull_request
 
     @cached_property
+    def title(self):
+        return self.pull_request.title
+
+    @cached_property
     def age(self):
         return self._pull_request.age
 
@@ -73,7 +77,7 @@ class PullRequestStatCollection(object):
     @cached_property
     def review_comment_reaction_statuses(self):
         statuses = []
-        review_states = self._pull_request.review_states_by_user
+        review_states = self.review_states_by_user
         review_comment_threads = self.review_comment_threads
         for thread in review_comment_threads:
             if not thread.outdated:

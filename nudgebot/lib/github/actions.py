@@ -106,7 +106,7 @@ class AddReviewersFromPool(Action):
 
     def action(self):
         self._reviewers = [ReviewerUser(
-            random.choice(self._stat_collection.repo.maintainers[self._level]))]
+            random.choice(self._stat_collection.repo.maintainers[self._level-1]))]
         self._stat_collection.pull_request.add_reviewers(self._reviewers)
         return {'reviewers': [reviewer.login for reviewer in self._reviewers]}
 

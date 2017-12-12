@@ -61,13 +61,11 @@ class NudgeBot(object):
         elif isinstance(tree, Action):
             action = tree
             action.define_stat_collection(stat_collection)
-            is_done = (action.run_type != RUN_TYPES.ALWAYS or
-                       [record for record in db().records.find({
+            is_done = ([record for record in db().records.find({
                            'case_checksum': cases_checksum.hexdigest(),
                            'action': {'checksum': action.hash}})
-                        ]
-                       )
-            if not is_done:
+                        ])
+            if not is_done or action.run_type == RUN_TYPES.ALWAYS:
                 action_properties = action.run()
                 self.add_record(cases_checksum.hexdigest(), action, action_properties)
 
@@ -75,15 +73,17 @@ class NudgeBot(object):
         return self._process_flow(pull_request_stat_collection, FLOW)
 
     def work(self):
-        for pr_status in PullRequest.get_all():
-            pr_stat = PullRequestStatCollection(pr_status)
+        for pr in PullRequest.get_all():
+            pr_stat = PullRequestStatCollection(pr)
             self.process(pr_stat)
 
-    def run(self):
+    def run(self, one_session=True):
         while True:
             try:
                 self.work()
             except KeyboardInterrupt:
+                break
+            if one_session:
                 break
 
 

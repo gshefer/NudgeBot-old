@@ -1,4 +1,5 @@
 import md5
+import re
 from datetime import datetime
 
 from nudgebot.lib.github.pull_request import PRstate
@@ -123,3 +124,28 @@ class WaitingForReviewCommentReaction(Case):
             for status in self._stat_collection.review_comment_reaction_statuses
         ])
         return self._md5(last_comments_hash, self.days, self.hours)
+
+
+class DescriptionDoesntInclude(Case):
+
+    def __init__(self, text):
+        self._text = text
+
+    @property
+    def state(self):
+        if isinstance(self._text, re._pattern_type):
+            return not bool(self._text.search(self._stat_collection.description))
+        return self._text not in self._stat_collection.description
+
+    @property
+    def hash(self):
+        return self._md5(
+            getattr(self._text, 'pattern', self._text),
+            self._stat_collection.description
+        )
+
+
+class HasNoDescription(DescriptionDoesntInclude):
+
+    def __init__(self):
+        DescriptionDoesntInclude.__init__(self, re.compile('.'))
