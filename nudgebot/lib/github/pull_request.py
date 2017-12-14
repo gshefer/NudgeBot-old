@@ -7,7 +7,6 @@ from cached_property import cached_property
 import dateparser
 import requests
 
-from . import GithubEnv
 from .users import User, ContributorUser, ReviewerUser
 from config import config
 from common import ExtendedEnum
@@ -137,42 +136,21 @@ class PullRequest(object):
     """Pull Request includes a bunch of the properties and the information
     about the pull request.
     """
-    def __init__(self, repo, pr_handler):
+    def __init__(self, repo, github_obj):
 
         self.repo = repo
-        self._pr_handler = pr_handler
+        self._github_obj = github_obj
 
     def __repr__(self, *args, **kwargs):
-        return '<{} title={} user={} tags={}>'.format(
-            self.__class__.__name__, self.title, self.user.login,
-            ''.join([tag.raw for tag in self.tags])
-        )
+        return '<{} number="{}" title="{}" user="{}">'.format(
+            self.number, self.__class__.__name__, self.title, self.user.login)
 
     def __getattr__(self, name):
-        return getattr(self._pr_handler, name)
-
-    @classmethod
-    def get_all(cls, **filters):
-        """
-        Args (filters):
-            * state (optional): (str) the state of the pull requests to grab (open || closed).
-            * logins (optional): (list || tuple) a list of the logins.
-            * repos (optional): (list || tuple) a list of the repos.
-        """
-        state = filters.get('state', 'open')
-        logins = [login.lower() for login in filters.get('logins', [])]
-        repos = filters.get('repos', GithubEnv().repos)
-        prs = []
-        for repo in repos:
-            for pr in repo.get_pulls(state=state):
-                if logins and pr.user.login.lower() not in logins:
-                    continue
-                prs.append(cls(repo, pr))
-        return prs
+        return getattr(self._github_obj, name)
 
     @property
     def description(self):
-        return self._pr_handler.body
+        return self._github_obj.body
 
     @property
     def commits(self):
@@ -180,15 +158,15 @@ class PullRequest(object):
 
     @property
     def html(self):
-        return requests.get(self._pr_handler.html_url).content
+        return requests.get(self._github_obj.html_url).content
 
     @property
     def patch(self):
-        return requests.get(self._pr_handler.patch_url).content.encode('UTF-8')
+        return requests.get(self._github_obj.patch_url).content.encode('UTF-8')
 
     @property
     def diff(self):
-        return requests.get(self._pr_handler.diff_url).content.encode('UTF-8')
+        return requests.get(self._github_obj.diff_url).content.encode('UTF-8')
 
     @property
     def tags(self):
@@ -200,7 +178,7 @@ class PullRequest(object):
         """
         if len(set([t.type for t in tags]).union()) != len(tags):
             raise Exception()  # TODO: Implement multiple tags with the same type exception
-        return self._pr_handler.edit(
+        return self._github_obj.edit(
             '{} {}'.format(
                 ''.join([t.raw for t in tags]), re.split(
                     config().config.github.pull_request_title_tag.pattern, self.title
@@ -209,7 +187,7 @@ class PullRequest(object):
         )
 
     def remove_tags(self, *tags):
-        return self._pr_handler.edit(
+        return self._github_obj.edit(
             '{} {}'.format(
                 ''.join([t.raw for t in tags if t not in self.tags]),
                 re.split(config().config.github.pull_request_title_tag.pattern,
@@ -226,11 +204,32 @@ class PullRequest(object):
         return self.get_reviews()
 
     @property
-    def reviewers(self):
+    def reviewer_requests(self):
+        return self.get_reviewer_requests()
+
+    @property
+    def all_reviewers(self):
+        # Including both existing reviewers and reviewers from reviewer request
+        # Including reviewers that not in the pool
         reviewers = []
         for review in self.reviews:
             reviewers.append(ReviewerUser(review.user.login))
-        return list(set(reviewers).union())
+        for review_request in self.reviewer_requests:
+            reviewer = ReviewerUser(review_request.login)
+            if reviewer not in reviewers:
+                reviewers.append(reviewer)
+        return list(set(reviewers))
+
+    @property
+    def reviewers(self):
+        reviewers = self.all_reviewers
+        # Filtering reviewers that not in the pool and updating the pool
+        for reviewer in reviewers:
+            if reviewer in self.repo.reviewers_pool.reviewers:
+                self.repo.reviewers_pool.update_reviewer_stat(reviewer, self.number)
+            else:
+                reviewers.remove(reviewer)
+        return reviewers
 
     def create_review(self, commit, body, event=None, comments=None):
         """
@@ -268,7 +267,7 @@ class PullRequest(object):
                 <https://developer.github.com/v3/pulls/review_requests/>`_
         :param reviewers: (logins) list of strings or User
         """
-        status, _, _ = self._pr_handler._requester.requestJson(
+        status, _, _ = self._github_obj._requester.requestJson(
             "POST",
             self.url + "/requested_reviewers",
             input={'reviewers': [rev.login if isinstance(rev, User) else rev for rev in reviewers]},
@@ -283,7 +282,7 @@ class PullRequest(object):
                 <https://developer.github.com/v3/pulls/review_requests/>`_
         :param reviewers: (logins) list of strings
         """
-        status, _, _ = self._pr_handler._requester.requestJson(
+        status, _, _ = self._github_obj._requester.requestJson(
             "DELETE",
             self.url + "/requested_reviewers",
             input={'reviewers': [rev.login if isinstance(rev, User) else rev for rev in reviewers]},
@@ -294,11 +293,11 @@ class PullRequest(object):
     @property
     def age(self):
         now = datetime.now()
-        return now - self._pr_handler.created_at
+        return now - self._github_obj.created_at
 
     @property
     def review_comments(self):
-        comments = [c for c in self._pr_handler.get_review_comments()]
+        comments = [c for c in self._github_obj.get_review_comments()]
         comments.sort(key=lambda c: c.updated_at)
         return comments
 
@@ -314,13 +313,13 @@ class PullRequest(object):
 
     @property
     def issue_comments(self):
-        comments = [c for c in self._pr_handler.get_issue_comments()]
+        comments = [c for c in self._github_obj.get_issue_comments()]
         comments.sort(key=lambda c: c.updated_at)
         return comments
 
     @property
     def test_results(self):
-        tests = json.loads(requests.get(self._pr_handler.raw_data['statuses_url']).content)
+        tests = json.loads(requests.get(self._github_obj.raw_data['statuses_url']).content)
         out = {}
         for test in tests:
             out[test['context']] = test['description']
@@ -328,15 +327,15 @@ class PullRequest(object):
 
     @property
     def owner(self):
-        return ContributorUser(self._pr_handler.user)
+        return ContributorUser(self._github_obj.user)
 
     @property
     def last_code_update(self):
-        return dateparser.parse(list(self._pr_handler.get_commits()).pop().last_modified)
+        return dateparser.parse(list(self._github_obj.get_commits()).pop().last_modified)
 
     @property
     def last_update(self):
-        return self._pr_handler.updated_at
+        return self._github_obj.updated_at
 
     @property
     def json(self):

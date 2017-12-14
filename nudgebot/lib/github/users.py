@@ -8,18 +8,24 @@ from config import config
 
 class User(object):
 
-    def __init__(self, user):
-        self._user = user
+    def __init__(self, github_obj):
+        self._github_obj = github_obj
+
+    def __hash__(self):
+        return hash(self.login)
+
+    def __repr__(self):
+        return '<{} login="{}">'.format(self.__class__.__name__, self.login)
 
     def __eq__(self, other):
         return self.login == other or self.login == getattr(other, 'login', None)
 
     @cached_property
     def user(self):
-        if isinstance(self._user, NamedUser):
-            return self._user
-        self._user = GithubEnv().GIT.get_user(self._user)
-        return self._user
+        if isinstance(self._github_obj, NamedUser):
+            return self._github_obj
+        self._github_obj = GithubEnv().GIT.get_user(self._github_obj)
+        return self._github_obj
 
     @cached_property
     def email(self):

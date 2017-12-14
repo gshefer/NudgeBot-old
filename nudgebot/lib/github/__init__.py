@@ -15,10 +15,11 @@ class GithubEnv(object):
         self.GIT = Github(login_info.get('username'), login_info.get('password'),
                           client_id=login_info.client_id, client_secret=login_info.client_secret)
         self.repos = []
+        from repository import Repository
         for repo in config().config.github.repos:
             try:
                 org = self.GIT.get_organization(repo.org)
             except UnknownObjectException:
                 org = self.GIT.get_user(repo.org)
-            self.repos.append(org.get_repo(repo.repo))
-            setattr(self.repos[-1], 'maintainers', repo.reviewers)
+
+            self.repos.append(Repository(org, org.get_repo(repo.repo)))

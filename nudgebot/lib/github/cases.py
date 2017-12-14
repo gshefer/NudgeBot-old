@@ -77,8 +77,9 @@ class ReviewerApproved(Case):
     @property
     def state(self):
         approvals = 0
-        for state in self._stat_collection.review_states_by_user.values():
-            if state == Approve.STATE:
+        for reviewer, state in self._stat_collection.review_states_by_user.items():
+            if (reviewer in self._stat_collection.repo.reviewers_pool.reviewers and
+                    state == Approve.STATE):
                 approvals += 1
         return approvals == self._level
 

@@ -11,3 +11,5 @@ github:
   pull_request_title_tag:
     format: '[{}]'
     pattern: '\[(\w+)\]'
+testing_mode: false
+debug_mode: false

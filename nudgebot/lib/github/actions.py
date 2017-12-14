@@ -1,22 +1,20 @@
-import random
 import md5
 from datetime import datetime
 
 from common import ExtendedEnum
-from nudgebot.lib.github.users import BotUser, ReviewerUser
+from nudgebot.lib.github.users import BotUser
+from config import config
 
 
 class RUN_TYPES(ExtendedEnum):
     ONCE = 'Once'
-    CYCLE = 'Cycle'
     ALWAYS = 'Always'
 
 
 class Action(object):
     """A base class for action"""
-    ACTIONS_LOG = []
     DEFAULT_RUNTYPE = RUN_TYPES.ONCE
-    _user = BotUser()
+    _github_obj = BotUser()
 
     def __init__(self, run_type=DEFAULT_RUNTYPE):
         self.run_type = run_type
@@ -29,8 +27,8 @@ class Action(object):
         self._stat_collection = stat_collection
 
     def run(self):
-        self.ACTIONS_LOG.append(self)
-        self.done_at = datetime.now()
+        if config().config.testing_mode:
+            return {}
         return self.action()
 
     def action(self):
@@ -80,55 +78,53 @@ class PullRequestTagRemove(Action):
         return self._md5('-', *[tag.raw for tag in self._tags])
 
 
-class AddReviewers(Action):
+class AddReviewer(Action):
 
-    def __init__(self, *reviewers, **kwargs):
-        self._reviewers = reviewers
-        super(AddReviewers, self).__init__(
+    def __init__(self, reviewer, **kwargs):
+        self._reviewer = reviewer
+        super(AddReviewer, self).__init__(
             kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
 
     def action(self):
-        self._stat_collection.pull_request.add_reviewers(self._reviewers)
-        return {'reviewers': [reviewer.login for reviewer in self._reviewers]}
+        self._stat_collection.pull_request.add_reviewers([self._reviewer])
+        return {'reviewer': reviewer.login for reviewer in self._reviewer}
 
     @property
     def hash(self):
-        return self._md5('+', *[reviewer.user.login for reviewer in self._reviewers])
+        return self._md5('+', self._reviewer)
 
 
-class AddReviewersFromPool(Action):
+class AddReviewerFromPool(Action):
 
     def __init__(self, level, **kwargs):
         self._level = level
-        self._reviewers = []  # Defined in action
-        super(AddReviewersFromPool, self).__init__(
+        self._reviewer = None  # Defined in action
+        super(AddReviewerFromPool, self).__init__(
             kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
 
     def action(self):
-        self._reviewers = [ReviewerUser(
-            random.choice(self._stat_collection.repo.maintainers[self._level-1]))]
-        self._stat_collection.pull_request.add_reviewers(self._reviewers)
-        return {'reviewers': [reviewer.login for reviewer in self._reviewers]}
+        self._reviewer = self._stat_collection.repo.reviewers_pool.pull_reviewer(self._level)
+        return AddReviewer(self._reviewer).action()
 
     @property
     def hash(self):
-        return self._md5('+', *[reviewer.user.login for reviewer in self._reviewers])
+        return self._md5('+', self._reviewer.login)
 
 
-class RemoveReviewers(Action):
+class RemoveReviewer(Action):
 
-    def __init__(self, *reviewers, **kwargs):
-        self._reviewers = reviewers
-        super(RemoveReviewers, self).__init__(
+    def __init__(self, reviewer, **kwargs):
+        self._reviewer = reviewer
+        super(RemoveReviewer, self).__init__(
             kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
 
     def action(self):
-        self._stat_collection.pull_request.remove_reviewers(self._reviewers)
-        return {'reviewers': [reviewer.login for reviewer in self._reviewers]}
+        self._stat_collection.pull_request.remove_reviewers([self._reviewer])
+        return {'reviewer': [reviewer.login for reviewer in self._reviewer]}
 
     @property
     def hash(self):
-        return self._md5('-', *[reviewer.user.login for reviewer in self._reviewers])
+        return self._md5('-', self._reviewer)
 
 
 class CreateIssueComment(Action):
@@ -160,7 +156,7 @@ class _ReviewStateActionBase(Action):
         return getattr(self, 'EVENT', self.STATE)
 
     def action(self):
-        self._stat_collection.pull_request.add_reviewers([self._user])
+        self._stat_collection.pull_request.add_reviewers([self._github_obj])
         review = self._stat_collection.pull_request.create_review(
             list(self._stat_collection.commits)[-1], self._body or self.STATE, self.event)
         return {'review_id': review.id}

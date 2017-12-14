@@ -12,3 +12,8 @@ class db(object):  # noqa
         self.db = self.client.data
         self.records = self.client.db.records
         self.stats = self.client.db.stats
+
+    def clear_db(self):
+        # Deleting all the data in the db
+        self.records.remove()
+        self.stats.remove()

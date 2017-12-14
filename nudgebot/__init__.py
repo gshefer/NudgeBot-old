@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import github
 import md5
 import smtplib
 from email.mime.text import MIMEText
@@ -7,11 +8,11 @@ from email.utils import COMMASPACE, formatdate
 
 from config import config
 from common import Singleton
-from nudgebot.lib.github.pull_request import PullRequest
 from nudgebot.lib.github.actions import Action, RUN_TYPES
 from nudgebot.db import db
 from nudgebot.lib.github.pull_request_stat_collection import PullRequestStatCollection
 from nudgebot.flow import FLOW
+from nudgebot.lib.github import GithubEnv
 
 
 class NudgeBot(object):
@@ -63,7 +64,7 @@ class NudgeBot(object):
             action.define_stat_collection(stat_collection)
             is_done = ([record for record in db().records.find({
                            'case_checksum': cases_checksum.hexdigest(),
-                           'action': {'checksum': action.hash}})
+                           'action.checksum': action.hash})
                         ])
             if not is_done or action.run_type == RUN_TYPES.ALWAYS:
                 action_properties = action.run()
@@ -73,11 +74,15 @@ class NudgeBot(object):
         return self._process_flow(pull_request_stat_collection, FLOW)
 
     def work(self):
-        for pr in PullRequest.get_all():
-            pr_stat = PullRequestStatCollection(pr)
-            self.process(pr_stat)
+        for repo in GithubEnv().repos:
+            repo.reviewers_pool.sync()
+            for pr in repo.get_pull_requests():
+                pr_stat = PullRequestStatCollection(pr)
+                self.process(pr_stat)
 
     def run(self, one_session=True):
+        if config().config.debug_mode:
+            github.enable_console_debug_logging()
         while True:
             try:
                 self.work()
