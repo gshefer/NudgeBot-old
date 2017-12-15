@@ -1,26 +1,29 @@
-from nudgebot.lib.github.cases import (NoPullRequestStateSet, PullRequestHasTag,
-                                       ReviewerNotSet, InactivityForPeriod,
-                                       ReviewerApproved, WaitingForReviewCommentReaction,
-                                       HasNoDescription)
-from nudgebot.lib.github.actions import (PullRequestTagSet, RUN_TYPES,
+import re
+
+from nudgebot.lib.github.cases import (PullRequestHasTitleTag, DescriptionInclude,
+                                       ReviewerWasSet, InactivityForPeriod,
+                                       ReviewerApproved, WaitingForReviewCommentReaction)
+from nudgebot.lib.github.actions import (PullRequestTitleTagSet, RUN_TYPES,
                                          CreateIssueComment, AddReviewerFromPool,
                                          ReportForInactivity, AskForReviewCommentReactions)
-from nudgebot.lib.github.pull_request import PullRequestTag, PRstate, PRtag
+
+PRstates = ['WIP', 'BLOCKED', 'WIPTEST', 'RFR']
 
 FLOW = {
-    HasNoDescription(): CreateIssueComment('Please add some description to the pull request.'),
-    NoPullRequestStateSet():
+    DescriptionInclude(re.compile('.'), not_case=True): CreateIssueComment(
+        'Please add some description to the pull request.'),
+    PullRequestHasTitleTag(PRstates, not_case=True):
         [
-            PullRequestTagSet(PullRequestTag(PRstate.WIP), run_type=RUN_TYPES.ALWAYS),
+            PullRequestTitleTagSet('WIP', run_type=RUN_TYPES.ALWAYS),
             CreateIssueComment('Please add a state to the PR title - setting state as [WIP].',
                                run_type=RUN_TYPES.ALWAYS)
         ],
-    PullRequestHasTag(PullRequestTag(PRstate.RFR)): {
-        ReviewerNotSet(level=1): AddReviewerFromPool(1),
-        ReviewerApproved(level=1): [
-            AddReviewerFromPool(2),
-            PullRequestTagSet(PullRequestTag(PRtag.LP1))
-        ],
+    PullRequestHasTitleTag('RFR'): {
+        ReviewerWasSet(level=1, not_case=True): AddReviewerFromPool(1),
+        ReviewerApproved(level=1): {
+            ReviewerWasSet(level=2, not_case=True): AddReviewerFromPool(2),
+            PullRequestHasTitleTag(re.compile('\d+LP'), not_case=True): PullRequestTitleTagSet('1LP')
+        },
         InactivityForPeriod(3, 0): ReportForInactivity(),
         InactivityForPeriod(7, 0): ReportForInactivity(),
         WaitingForReviewCommentReaction(2, 0): AskForReviewCommentReactions(2, 0)

@@ -4,6 +4,7 @@ from datetime import datetime
 from common import ExtendedEnum
 from nudgebot.lib.github.users import BotUser
 from config import config
+from nudgebot.lib.github.pull_request import PullRequestTitleTag
 
 
 class RUN_TYPES(ExtendedEnum):
@@ -46,11 +47,13 @@ class Action(object):
         raise NotImplementedError()
 
 
-class PullRequestTagSet(Action):
+class PullRequestTitleTagSet(Action):
 
     def __init__(self, *tags, **kwargs):
-        self._tags = tags
-        super(PullRequestTagSet, self).__init__(
+        self._tags = [tag if isinstance(tag, PullRequestTitleTag)
+                      else PullRequestTitleTag(tag)
+                      for tag in tags]
+        super(PullRequestTitleTagSet, self).__init__(
             kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
 
     def action(self):
@@ -62,11 +65,11 @@ class PullRequestTagSet(Action):
         return self._md5('+', *[tag.raw for tag in self._tags])
 
 
-class PullRequestTagRemove(Action):
+class PullRequestTitleTagRemove(Action):
 
     def __init__(self, *tags, **kwargs):
         self._tags = tags
-        super(PullRequestTagRemove, self).__init__(
+        super(PullRequestTitleTagRemove, self).__init__(
             kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
 
     def action(self):

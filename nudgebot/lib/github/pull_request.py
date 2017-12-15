@@ -9,22 +9,6 @@ import requests
 
 from .users import User, ContributorUser, ReviewerUser
 from config import config
-from common import ExtendedEnum
-
-
-class PRtag(ExtendedEnum):
-    NOTEST = 'NOTEST'
-    NOMERGE = 'NOMERGE'
-    LP1 = '1LP'
-    LP2 = '2LP'
-    LP3 = '3LP'
-
-
-class PRstate(ExtendedEnum):
-    WIP = 'WIP'
-    BLOCKED = 'BLOCKED'
-    WIPTEST = 'WIPTEST'
-    RFR = 'RFR'
 
 
 class ReviewCommentThread(object):
@@ -78,7 +62,7 @@ class ReviewCommentThread(object):
         return threads.values()
 
 
-class PullRequestTag(object):
+class PullRequestTitleTag(object):
     """Represents Pull Request title tag.
     e.g. [RFR], [WIP], ...
     """
@@ -95,33 +79,23 @@ class PullRequestTag(object):
         tag_names = re.findall(config().config.github.pull_request_title_tag.pattern, title)
         for tag_name in tag_names:
             tag_name = tag_name.upper()
-            if tag_name in PRtag.values():
-                tag = PRtag.get_by_value(tag_name)
-            elif tag_name in PRstate.values():
-                tag = PRstate.get_by_value(tag_name)
-            else:
-                raise Exception()  # TODO: Define appropriate exception
-            detected_tags.append(cls(tag))
+            detected_tags.append(cls(tag_name.upper()))
         return detected_tags
 
     def __init__(self, tag):
-        assert isinstance(tag, (PRtag, PRstate))
-        self._tag = tag
+        assert isinstance(tag, basestring)
+        self._tag = tag.upper()
 
     def __eq__(self, other):
         return self._tag == getattr(other, '_tag', None)
 
     def __repr__(self, *args, **kwargs):
-        return '<{} type="{}" name="{}">'.format(
-            self.__class__.__name__, self.type, self.name)
-
-    @property
-    def type(self):
-        return self._tag.__class__
+        return '<{} name="{}">'.format(
+            self.__class__.__name__, self.name)
 
     @property
     def name(self):
-        return self._tag.value
+        return self._tag
 
     @property
     def raw(self):
@@ -170,14 +144,12 @@ class PullRequest(object):
 
     @property
     def tags(self):
-        return PullRequestTag.fetch(self.title)
+        return PullRequestTitleTag.fetch(self.title)
 
     @tags.setter
     def tags(self, tags):
         """Setting the tags <tags> to the pull request title
         """
-        if len(set([t.type for t in tags]).union()) != len(tags):
-            raise Exception()  # TODO: Implement multiple tags with the same type exception
         return self._github_obj.edit(
             '{} {}'.format(
                 ''.join([t.raw for t in tags]), re.split(
