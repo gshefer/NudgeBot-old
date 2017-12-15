@@ -34,8 +34,9 @@ class ReviewersPool(object):
                         continue
                     self._pool[reviewer.login]['pull_requests'].add(pull_request.number)
 
-    def pull_reviewer(self, level, pull_request_number):
-        reviewer = min(self._pool.items(), key=lambda rev: len(rev['pull_requests']))
+    def pull_reviewer(self, level, pull_request_number, current_reviewers):
+        reviewers = filter(lambda r: r[0] not in current_reviewers, self._pool.items())
+        reviewer = min(reviewers, key=lambda rev: len(rev['pull_requests']))
         if not reviewer:
             raise Exception()  # TODO: Define appropriate exception
         self.update_reviewer_stat(reviewer[0], pull_request_number)

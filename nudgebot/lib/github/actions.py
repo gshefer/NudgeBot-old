@@ -106,7 +106,8 @@ class AddReviewerFromPool(Action):
             kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
 
     def action(self):
-        self._reviewer = self._stat_collection.repo.reviewers_pool.pull_reviewer(self._level)
+        self._reviewer = self._stat_collection.repo.reviewers_pool.pull_reviewer(
+            self._level, self._stat_collection.number, self._stat_collection.reviewers)
         return AddReviewer(self._reviewer).action()
 
     @property

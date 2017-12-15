@@ -139,8 +139,9 @@ class WaitingForReviewCommentReaction(Case):
 
 class DescriptionInclude(Case):
 
-    def __init__(self, text):
+    def __init__(self, text, *args, **kwargs):
         self._text = text
+        super(DescriptionInclude, self).__init__(*args, **kwargs)
 
     def check_state(self):
         if isinstance(self._text, re._pattern_type):
