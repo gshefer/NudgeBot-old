@@ -37,19 +37,6 @@ class NudgeBot(object):
         smtpObj = smtplib.SMTP('localhost')
         smtpObj.sendmail(self._email_addr, receivers, msg.as_string())
 
-    def add_record(self, cases_checksum, action, action_properties):
-        db().records.insert_one({
-            'case_checksum': cases_checksum,
-            'action': {
-                'checksum': action.hash,
-                'name': action.name,
-                'properties': action_properties
-            }
-        })
-
-    def add_stat(self, data):
-        db().stats.insert_one(data)
-
     def _process_flow(self, stat_collection, tree, cases_checksum=None):
         if not cases_checksum:
             cases_checksum = md5.new()
@@ -71,7 +58,7 @@ class NudgeBot(object):
                         ])
             if not is_done or action.run_type == RUN_TYPES.ALWAYS:
                 action_properties = action.run()
-                self.add_record(cases_checksum.hexdigest(), action, action_properties)
+                db().add_record(cases_checksum.hexdigest(), action, action_properties)
 
     def process(self, pull_request_stat_collection):
         return self._process_flow(pull_request_stat_collection, FLOW)
