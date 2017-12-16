@@ -47,6 +47,9 @@ class NudgeBot(object):
             }
         })
 
+    def add_stat(self, data):
+        db().stats.insert_one(data)
+
     def _process_flow(self, stat_collection, tree, cases_checksum=None):
         if not cases_checksum:
             cases_checksum = md5.new()
@@ -95,4 +98,4 @@ class NudgeBot(object):
 if __name__ == '__main__':
 
     nudge_bot = NudgeBot()
-    nudge_bot.run()
+    nudge_bot.run(one_session=True)

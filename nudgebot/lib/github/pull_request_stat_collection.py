@@ -20,6 +20,10 @@ class PullRequestStatCollection(object):
         return self.pull_request.title
 
     @cached_property
+    def owner(self):
+        return self.pull_request.owner
+
+    @cached_property
     def description(self):
         return self._pull_request.description
 
@@ -60,8 +64,8 @@ class PullRequestStatCollection(object):
         return self._pull_request.last_update
 
     @cached_property
-    def tags(self):
-        return self._pull_request.tags
+    def title_tags(self):
+        return self._pull_request.title_tags
 
     @cached_property
     def reviews(self):
@@ -83,6 +87,12 @@ class PullRequestStatCollection(object):
         return review_states
 
     @cached_property
+    def last_review_comment(self):
+        review_comments = self.review_comments
+        if review_comments:
+            return max(review_comments, key=lambda item: item.updated_at)
+
+    @cached_property
     def review_comment_reaction_statuses(self):
         statuses = []
         review_states = self.review_states_by_user
@@ -101,3 +111,34 @@ class PullRequestStatCollection(object):
                         'age_seconds': age_seconds
                     })
         return statuses
+
+    @property
+    def json(self):
+        """Get the object data as dictionary"""
+        last_review_comment = self.last_review_comment
+        age_total_seconds = int(self.age.total_seconds())
+        days_ago = age_total_seconds / 86400
+        hours_ago = (age_total_seconds - days_ago * 86400) / 3600
+        data = {
+            'number': self.number,
+            'title': self.title,
+            'owner': self.owner.login,
+            'description': self.description,
+            'age': {
+                'days': days_ago,
+                'hours': hours_ago
+            },
+            'repository': self.repo.name,
+            'last_update': str(self.last_update),
+            'test_results': self.test_results,
+            'title_tags': [tt.name for tt in self.title_tags],
+            'reviewers': [reviewer.login for reviewer in self.reviewers],
+            'review_states_by_user': {user.login: state for user, state in self.review_states_by_user.items()},
+        }
+        if last_review_comment:
+            data['last_review_comment'] = {
+                'login': last_review_comment.user.login,
+                'body': last_review_comment.body,
+                'updated_at': last_review_comment.updated_at
+            }
+        return data

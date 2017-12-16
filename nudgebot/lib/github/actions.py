@@ -49,16 +49,16 @@ class Action(object):
 
 class PullRequestTitleTagSet(Action):
 
-    def __init__(self, *tags, **kwargs):
+    def __init__(self, *title_tags, **kwargs):
         self._tags = [tag if isinstance(tag, PullRequestTitleTag)
                       else PullRequestTitleTag(tag)
-                      for tag in tags]
+                      for tag in title_tags]
         super(PullRequestTitleTagSet, self).__init__(
             kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
 
     def action(self):
-        self._stat_collection.pull_request.tags = self._tags
-        return {'tags': [tag.raw for tag in self._tags]}
+        self._stat_collection.pull_request.title_tags = self._tags
+        return {'title_tags': [tag.raw for tag in self._tags]}
 
     @property
     def hash(self):
@@ -67,14 +67,14 @@ class PullRequestTitleTagSet(Action):
 
 class PullRequestTitleTagRemove(Action):
 
-    def __init__(self, *tags, **kwargs):
-        self._tags = tags
+    def __init__(self, *title_tags, **kwargs):
+        self._tags = title_tags
         super(PullRequestTitleTagRemove, self).__init__(
             kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
 
     def action(self):
-        self._stat_collection.pull_request.remove_tags(*self._tags)
-        return {'tags': [tag.raw for tag in self._tags]}
+        self._stat_collection.pull_request.remove_title_tags(*self._tags)
+        return {'title_tags': [tag.raw for tag in self._tags]}
 
     @property
     def hash(self):

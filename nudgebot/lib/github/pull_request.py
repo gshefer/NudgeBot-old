@@ -69,7 +69,7 @@ class PullRequestTitleTag(object):
 
     @classmethod
     def fetch(cls, title):
-        """PullRequestTitleTag Factory - fetching tags from title.
+        """PullRequestTitleTag Factory - fetching title_tags from title.
         Args:
             * title (str): the Pull request title.
         Returns: list of PullRequestTitleTag
@@ -143,12 +143,12 @@ class PullRequest(object):
         return requests.get(self._github_obj.diff_url).content.encode('UTF-8')
 
     @property
-    def tags(self):
+    def title_tags(self):
         return PullRequestTitleTag.fetch(self.title)
 
-    @tags.setter
-    def tags(self, tags):
-        """Setting the tags <tags> to the pull request title
+    @title_tags.setter
+    def title_tags(self, tags):
+        """Setting the title_tags <title_tags> to the pull request title
         """
         return self._github_obj.edit(
             '{} {}'.format(
@@ -158,18 +158,18 @@ class PullRequest(object):
             )
         )
 
-    def remove_tags(self, *tags):
+    def remove_title_tags(self, *title_tags):
         return self._github_obj.edit(
             '{} {}'.format(
-                ''.join([t.raw for t in tags if t not in self.tags]),
+                ''.join([t.raw for t in title_tags if t not in self.title_tags]),
                 re.split(config().config.github.pull_request_title_tag.pattern,
                          self.title)[-1].strip()
             ).strip()
         )
 
-    @tags.deleter
-    def tags(self):
-        return self.remove_tags(self.tags)
+    @title_tags.deleter
+    def title_tags(self):
+        return self.remove_title_tags(self.title_tags)
 
     @property
     def reviews(self):
@@ -278,12 +278,6 @@ class PullRequest(object):
         return ReviewCommentThread.fetch_threads(self)
 
     @property
-    def last_review_comment(self):
-        review_comments = self.review_comments
-        if review_comments:
-            return max(review_comments, key=lambda item: item.updated_at)
-
-    @property
     def issue_comments(self):
         comments = [c for c in self._github_obj.get_issue_comments()]
         comments.sort(key=lambda c: c.updated_at)
@@ -291,7 +285,8 @@ class PullRequest(object):
 
     @property
     def test_results(self):
-        tests = json.loads(requests.get(self._github_obj.raw_data['statuses_url']).content)
+        auth = (config().credentials.github.username, config().credentials.github.password)
+        tests = json.loads(requests.get(self._github_obj.raw_data['statuses_url'], auth=auth).content)
         out = {}
         for test in tests:
             out[test['context']] = test['description']
@@ -308,31 +303,3 @@ class PullRequest(object):
     @property
     def last_update(self):
         return self._github_obj.updated_at
-
-    @property
-    def json(self):
-        """Get the object data as dictionary"""
-        lst_cmnt = self.last_review_comment
-        age_total_seconds = int(self.age.total_seconds())
-        days_ago = age_total_seconds / 86400
-        hours_ago = (age_total_seconds - days_ago * 86400) / 3600
-        out = {
-            'repo': self.repo.name,
-            'number': self.number,
-            'owner': self.owner.name or self.owner.login,
-            'title': self.title,
-            'tags': [tag.json for tag in self.tags],
-            'age': {
-                'days': days_ago,
-                'hours': hours_ago
-            },
-            'tests': self.test_results,
-            'last_code_update': self.last_code_update.isoformat()
-        }
-        if lst_cmnt:
-            out['last_review_comment'] = {
-                'user': lst_cmnt.user.name or lst_cmnt.user.login,
-                'body': lst_cmnt.body,
-                'updated_at': lst_cmnt.updated_at.isoformat()
-            }
-        return out

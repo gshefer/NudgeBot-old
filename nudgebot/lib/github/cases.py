@@ -47,22 +47,23 @@ class Case(object):
 class PullRequestHasTitleTag(Case):
 
     def __init__(self, tag, *args, **kwargs):
-        if isinstance(tag, basestring):
+        if isinstance(tag, (basestring, re._pattern_type)):
             tag = [tag]
         self._tag_options = tag
         super(PullRequestHasTitleTag, self).__init__(*args, **kwargs)
 
     def check_state(self):
         for tag in self._tag_options:
-            for exists_tag in self._stat_collection.tags:
+            for exists_tag in self._stat_collection.title_tags:
                 if (tag.match(exists_tag) if isinstance(tag, re._pattern_type)
-                        else tag.lower() == exists_tag.lower()):
+                        else tag.lower() == exists_tag.name.lower()):
                         return True
         return False
 
     @property
     def hash(self):
-        return self._md5(self._tag)
+        return self._md5(*[tag.pattern if isinstance(tag, re._pattern_type) else tag
+                           for tag in self._tag_options])
 
 
 class ReviewerWasSet(Case):
