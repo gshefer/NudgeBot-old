@@ -55,7 +55,7 @@ class PullRequestHasTitleTag(Case):
     def check_state(self):
         for tag in self._tag_options:
             for exists_tag in self._stat_collection.title_tags:
-                if (tag.match(exists_tag) if isinstance(tag, re._pattern_type)
+                if (tag.match(exists_tag.name) if isinstance(tag, re._pattern_type)
                         else tag.lower() == exists_tag.name.lower()):
                         return True
         return False
@@ -112,7 +112,7 @@ class InactivityForPeriod(Case):
 
     @property
     def hash(self):
-        return self._md5(self._stat_collection.last_update, self.days, self.hours)
+        return self._md5(self._stat_collection.last_update)
 
 
 class WaitingForReviewCommentReaction(Case):
@@ -155,3 +155,17 @@ class DescriptionInclude(Case):
             getattr(self._text, 'pattern', self._text),
             self._stat_collection.description
         )
+
+
+class CurrentRepoName(Case):
+
+    def __init__(self, name, *args, **kwargs):
+        self._name = name
+        super(CurrentRepoName, self).__init__(*args, **kwargs)
+
+    def check_state(self):
+        return self._stat_collection.repo.name == self._name
+
+    @property
+    def hash(self):
+        return self._md5(self._name)

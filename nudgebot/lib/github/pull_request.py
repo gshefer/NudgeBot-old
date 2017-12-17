@@ -124,7 +124,7 @@ class PullRequest(object):
 
     @property
     def description(self):
-        return self._github_obj.body
+        return self._github_obj.body or ''
 
     @property
     def commits(self):

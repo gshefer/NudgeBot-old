@@ -37,7 +37,7 @@ class NudgeBot(object):
         smtpObj = smtplib.SMTP('localhost')
         smtpObj.sendmail(self._email_addr, receivers, msg.as_string())
 
-    def _process_flow(self, stat_collection, tree, cases_checksum=None):
+    def _process_flow(self, session_id, stat_collection, tree, cases_checksum=None):
         if not cases_checksum:
             cases_checksum = md5.new()
         if isinstance(tree, dict):
@@ -45,10 +45,10 @@ class NudgeBot(object):
                 case.define_stat_collection(stat_collection)
                 if case.state:
                     cases_checksum.update(case.hash)
-                    return self._process_flow(stat_collection, node, cases_checksum)
+                    return self._process_flow(session_id, stat_collection, node, cases_checksum)
         elif isinstance(tree, (list, tuple)):
             for action in tree:
-                self._process_flow(stat_collection, action, cases_checksum)
+                self._process_flow(session_id, stat_collection, action, cases_checksum)
         elif isinstance(tree, Action):
             action = tree
             action.define_stat_collection(stat_collection)
@@ -58,17 +58,22 @@ class NudgeBot(object):
                         ])
             if not is_done or action.run_type == RUN_TYPES.ALWAYS:
                 action_properties = action.run()
-                db().add_record(cases_checksum.hexdigest(), action, action_properties)
+                db().add_record(session_id, cases_checksum.hexdigest(), action, action_properties)
 
-    def process(self, pull_request_stat_collection):
-        return self._process_flow(pull_request_stat_collection, FLOW)
+    def process(self, session_id,  pull_request_stat_collection):
+        return self._process_flow(session_id, pull_request_stat_collection, FLOW)
 
     def work(self):
+        session = db().new_session()
         for repo in GithubEnv().repos:
             repo.reviewers_pool.sync()
             for pr in repo.get_pull_requests():
                 pr_stat = PullRequestStatCollection(pr)
-                self.process(pr_stat)
+                self.process(session['id'], pr_stat)
+                if config().config.report.send_report:
+                    db().add_stat(session['id'], pr_stat.json)
+        if config().config.report.send_report:
+            pass  # TODO: Create and send report
 
     def run(self, one_session=True):
         if config().config.debug_mode:

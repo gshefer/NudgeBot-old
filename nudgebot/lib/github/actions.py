@@ -39,7 +39,7 @@ class Action(object):
         checksum = md5.new()
         checksum.update(str(self._stat_collection.number))
         for str_ in strings:
-            checksum.update(str_)
+            checksum.update(str(str_))
         return checksum.hexdigest()
 
     @property
@@ -112,7 +112,7 @@ class AddReviewerFromPool(Action):
 
     @property
     def hash(self):
-        return self._md5('+', self._reviewer.login)
+        return self._md5()
 
 
 class RemoveReviewer(Action):

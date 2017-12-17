@@ -13,3 +13,7 @@ github:
     pattern: '\[(\w+)\]'
 testing_mode: false
 debug_mode: false
+report:
+  send_report: true
+  receivers:
+    - <reciever_1>
