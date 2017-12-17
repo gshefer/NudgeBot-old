@@ -6,7 +6,7 @@ from nudgebot.lib.github.users import ReviewerUser
 from nudgebot.lib.github.actions import RequestChanges
 
 
-class PullRequestStatCollection(object):
+class PullRequestStatistics(object):
 
     def __init__(self, pull_request):
         self._pull_request = pull_request

@@ -10,7 +10,7 @@ from config import config
 from common import Singleton
 from nudgebot.lib.github.actions import Action, RUN_TYPES
 from nudgebot.db import db
-from nudgebot.lib.github.pull_request_stat_collection import PullRequestStatCollection
+from nudgebot.lib.github.pull_request_statistics import PullRequestStatistics
 from nudgebot.flow import FLOW
 from nudgebot.lib.github import GithubEnv
 
@@ -68,7 +68,7 @@ class NudgeBot(object):
         for repo in GithubEnv().repos:
             repo.reviewers_pool.sync()
             for pr in repo.get_pull_requests():
-                pr_stat = PullRequestStatCollection(pr)
+                pr_stat = PullRequestStatistics(pr)
                 self.process(session['id'], pr_stat)
                 if config().config.report.send_report:
                     db().add_stat(session['id'], pr_stat.json)
