@@ -2,8 +2,10 @@
 import github
 import md5
 import smtplib
+from email import encoders
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
 from email.utils import COMMASPACE, formatdate
 
 from config import config
@@ -13,6 +15,7 @@ from nudgebot.db import db
 from nudgebot.lib.github.pull_request_statistics import PullRequestStatistics
 from nudgebot.flow import FLOW
 from nudgebot.lib.github import GithubEnv
+from nudgebot.report import Reporter
 
 
 class NudgeBot(object):
@@ -22,7 +25,7 @@ class NudgeBot(object):
     def __init__(self):
         self._email_addr = config().credentials.email.address
 
-    def send_email(self, receivers, subject, body):
+    def send_email(self, receivers, subject, body, attachments=None):
         """Sending the message <body> to the <recievers>"""
         if isinstance(receivers, basestring):
             receivers = [receivers]
@@ -33,6 +36,15 @@ class NudgeBot(object):
         msg['Subject'] = subject
 
         msg.attach(MIMEText(body))
+        if attachments:
+            for attachment in attachments:
+                with open(attachment, "rb") as attachment_file:
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(attachment_file.read())
+                    encoders.encode_base64(part)
+                    part.add_header('Content-Disposition', "attachment; filename= {}"
+                                    .format(attachment))
+                    msg.attach(part)
 
         smtpObj = smtplib.SMTP('localhost')
         smtpObj.sendmail(self._email_addr, receivers, msg.as_string())
@@ -45,7 +57,7 @@ class NudgeBot(object):
                 case.define_stat_collection(stat_collection)
                 if case.state:
                     cases_checksum.update(case.hash)
-                    return self._process_flow(session_id, stat_collection, node, cases_checksum)
+                    self._process_flow(session_id, stat_collection, node, cases_checksum)
         elif isinstance(tree, (list, tuple)):
             for action in tree:
                 self._process_flow(session_id, stat_collection, action, cases_checksum)
@@ -73,7 +85,8 @@ class NudgeBot(object):
                 if config().config.report.send_report:
                     db().add_stat(session['id'], pr_stat.json)
         if config().config.report.send_report:
-            pass  # TODO: Create and send report
+            Reporter().send_report([stat for stat in db().stats.find(
+                {'session_id': session['id']})])
 
     def run(self, one_session=True):
         if config().config.debug_mode:

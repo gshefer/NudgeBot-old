@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Pull requests statistics</title>
+  	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/css/patternfly.min.css">
+  	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/css/patternfly-additions.min.css">
+	<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+	<h1>Pull requests statistics</h1>
+	<table  class="table table-striped table-bordered table-hover" id="pr_stats">
+		<thead>
+			<tr>
+		    	<th><a href="#">Organization</a></th>
+		    	<th><a href="#">Repository</a></th>
+		    	<th><a href="#">Number</a></th>
+		    	<th><a href="#">Owner</a></th>
+		    	<th><a href="#">Title</a></th>
+		    	<th><a href="#">Tags</a></th>
+		    	<th><a href="#">Age</a></th>
+		    	<th><a href="#">Last update</a></th>
+		    	<th><a href="#">Last code update</a></th>
+		    	<th><a href="#">Reviewers</a></th>
+		    	<th><a href="#">Review States by User</a></th>
+		  	</tr>
+	  	</thead>
+	  	<tbody>
+	  		{% for stat in stats %}
+	    	<tr>
+				<td>{{ stat['organization'] }}</td>
+				<td>{{ stat['repository'] }}</td>
+				<td><a href="https://github.com/{{ stat['organization'] }}/{{ stat['repository'] }}/pull/{{ stat['number'] }}">{{ stat['number'] }}</a></td>
+				<td>{{ stat['owner'] }}</td>
+				<td>{{ stat['title'] }}</td>
+				<td>{{ ', '.join(stat['title_tags']) }}</td>
+				<td>{{ stat['age']['days'] }} days and {{ stat['age']['hours'] }} hours</td>
+				<td>{{ stat['last_update'] }}</td>
+				<td>{{ stat['last_code_update'] }}</td>
+				<td>{{ ', '.join(stat['reviewers']) }}</td>
+				<td>
+				{% for user, state in stat['review_states_by_user'].items() %}
+					{{ '{}: {}; '.format(user, state) }}
+				{% endfor %}
+				</td>
+			</tr>
+			{% endfor %}
+	    </tbody>
+    </table>
+    
+	<!-- jQuery library -->
+	<!-- Latest compiled JavaScript -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="http://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.9.1/jquery.tablesorter.min.js"></script>
+	<script>
+	$(document).ready(function() 
+    { 
+        $("#pr_stats").tablesorter(); 
+    } 
+	); 
+	</script>
+</body>
+</html>

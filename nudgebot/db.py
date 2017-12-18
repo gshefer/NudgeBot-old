@@ -17,9 +17,9 @@ class db(object):  # noqa
         self.stats = self.client.db.stats
 
     def new_session(self):
-        old_sessions = [session['id'] for session in self.sessions.find()]
+        old_session_ids = [session['id'] for session in self.sessions.find()]
         data = {
-            'id': (min(old_sessions)+1 if old_sessions else 0),
+            'id': (max(old_session_ids)+1 if old_session_ids else 0),
             'start_time': datetime.now()
         }
         self.sessions.insert_one(data)
@@ -37,7 +37,8 @@ class db(object):  # noqa
         })
 
     def add_stat(self, session_id, data):
-        db().stats.insert_one({'session_id': session_id}, data)
+        data['session_id'] = session_id
+        db().stats.insert_one(data)
 
     def clear_db(self):
         # Deleting all the data in the db

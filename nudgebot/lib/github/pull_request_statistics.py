@@ -40,6 +40,10 @@ class PullRequestStatistics(object):
         return self._pull_request.repo
 
     @cached_property
+    def org(self):
+        return self.repo.organization or self.repo.owner
+
+    @cached_property
     def commits(self):
         return self._pull_request.commits
 
@@ -128,12 +132,15 @@ class PullRequestStatistics(object):
                 'days': days_ago,
                 'hours': hours_ago
             },
+            'organization': getattr(self.org, 'login', self.org.name),
             'repository': self.repo.name,
             'last_update': str(self.last_update),
             'test_results': self.test_results,
             'title_tags': [tt.name for tt in self.title_tags],
             'reviewers': [reviewer.login for reviewer in self.reviewers],
             'review_states_by_user': {user.login: state for user, state in self.review_states_by_user.items()},
+            'last_review_comment': {'login': '', 'body': '', 'updated_at': ''},
+            'last_code_update': str(self.last_code_update)
         }
         if last_review_comment:
             data['last_review_comment'] = {

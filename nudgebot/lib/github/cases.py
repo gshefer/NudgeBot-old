@@ -135,7 +135,7 @@ class WaitingForReviewCommentReaction(Case):
             status['last_comment'].created_at.strftime('%d-%m-%y-%H-%M-%S')
             for status in self._stat_collection.review_comment_reaction_statuses
         ])
-        return self._md5(last_comments_hash, self.days, self.hours)
+        return self._md5(last_comments_hash, self._days, self._hours)
 
 
 class DescriptionInclude(Case):

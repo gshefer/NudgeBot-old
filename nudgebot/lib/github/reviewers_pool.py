@@ -1,5 +1,7 @@
 from cached_property import cached_property
 
+from nudgebot.lib.github.users import ReviewerUser
+
 
 class ReviewersPool(object):
 
@@ -34,13 +36,14 @@ class ReviewersPool(object):
                         continue
                     self._pool[reviewer.login]['pull_requests'].add(pull_request.number)
 
-    def pull_reviewer(self, level, pull_request_number, current_reviewers):
-        reviewers = filter(lambda r: r[0] not in current_reviewers, self._pool.items())
-        reviewer = min(reviewers, key=lambda rev: len(rev['pull_requests']))
+    def pull_reviewer(self, level, pull_request):
+        reviewers = filter(lambda r: (r[0] not in pull_request.reviewers
+                                      and r[0] != pull_request.owner.login), self._pool.items())
+        reviewer = min(reviewers, key=lambda rev: len(rev[1]['pull_requests']))
         if not reviewer:
             raise Exception()  # TODO: Define appropriate exception
-        self.update_reviewer_stat(reviewer[0], pull_request_number)
-        return reviewer[0]
+        self.update_reviewer_stat(reviewer[0], pull_request.number)
+        return ReviewerUser(reviewer[0])
 
     def update_reviewer_stat(self, reviewer_login, pull_request_number):
         if reviewer_login not in self._pool:

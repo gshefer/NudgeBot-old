@@ -17,9 +17,9 @@ FLOW = {
             'Please add some description to the pull request.'),
         PullRequestHasTitleTag(PRstates, not_case=True):
             [
-                PullRequestTitleTagSet('WIP', run_type=RUN_TYPES.ALWAYS),
                 CreateIssueComment('Please add a state to the PR title - setting state as [WIP].',
-                                   run_type=RUN_TYPES.ALWAYS)
+                                   run_type=RUN_TYPES.ALWAYS),
+                PullRequestTitleTagSet('WIP', run_type=RUN_TYPES.ALWAYS)
             ],
         PullRequestHasTitleTag('RFR'): {
             ReviewerWasSet(level=1, not_case=True): AddReviewerFromPool(1),

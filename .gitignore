@@ -7,4 +7,5 @@ credentials.yaml
 .env
 .cache
 doc_data.yaml
+nudgebot/report/report.html
 

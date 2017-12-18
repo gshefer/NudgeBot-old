@@ -17,8 +17,8 @@ class Action(object):
     DEFAULT_RUNTYPE = RUN_TYPES.ONCE
     _github_obj = BotUser()
 
-    def __init__(self, run_type=DEFAULT_RUNTYPE):
-        self.run_type = run_type
+    def __init__(self, **kwargs):
+        self.run_type = kwargs.get('run_type') or self.DEFAULT_RUNTYPE
 
     @property
     def name(self):
@@ -53,8 +53,7 @@ class PullRequestTitleTagSet(Action):
         self._tags = [tag if isinstance(tag, PullRequestTitleTag)
                       else PullRequestTitleTag(tag)
                       for tag in title_tags]
-        super(PullRequestTitleTagSet, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(PullRequestTitleTagSet, self).__init__(**kwargs)
 
     def action(self):
         self._stat_collection.pull_request.title_tags = self._tags
@@ -69,8 +68,7 @@ class PullRequestTitleTagRemove(Action):
 
     def __init__(self, *title_tags, **kwargs):
         self._tags = title_tags
-        super(PullRequestTitleTagRemove, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(PullRequestTitleTagRemove, self).__init__(**kwargs)
 
     def action(self):
         self._stat_collection.pull_request.remove_title_tags(*self._tags)
@@ -85,12 +83,11 @@ class AddReviewer(Action):
 
     def __init__(self, reviewer, **kwargs):
         self._reviewer = reviewer
-        super(AddReviewer, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(AddReviewer, self).__init__(**kwargs)
 
     def action(self):
         self._stat_collection.pull_request.add_reviewers([self._reviewer])
-        return {'reviewer': reviewer.login for reviewer in self._reviewer}
+        return {'reviewer': self._reviewer.login}
 
     @property
     def hash(self):
@@ -102,13 +99,13 @@ class AddReviewerFromPool(Action):
     def __init__(self, level, **kwargs):
         self._level = level
         self._reviewer = None  # Defined in action
-        super(AddReviewerFromPool, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(AddReviewerFromPool, self).__init__(**kwargs)
 
     def action(self):
         self._reviewer = self._stat_collection.repo.reviewers_pool.pull_reviewer(
-            self._level, self._stat_collection.number, self._stat_collection.reviewers)
-        return AddReviewer(self._reviewer).action()
+            self._level, self._stat_collection.pull_request)
+        self._stat_collection.pull_request.add_reviewers([self._reviewer])
+        return {'reviewer': self._reviewer.login}
 
     @property
     def hash(self):
@@ -119,8 +116,7 @@ class RemoveReviewer(Action):
 
     def __init__(self, reviewer, **kwargs):
         self._reviewer = reviewer
-        super(RemoveReviewer, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(RemoveReviewer, self).__init__(**kwargs)
 
     def action(self):
         self._stat_collection.pull_request.remove_reviewers([self._reviewer])
@@ -135,8 +131,7 @@ class CreateIssueComment(Action):
 
     def __init__(self, body, **kwargs):
         self._body = body
-        super(CreateIssueComment, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(CreateIssueComment, self).__init__(**kwargs)
 
     def action(self):
         comment = self._stat_collection.pull_request.create_issue_comment(self._body)
@@ -152,8 +147,7 @@ class _ReviewStateActionBase(Action):
 
     def __init__(self, body=None, **kwargs):
         self._body = body
-        super(_ReviewStateActionBase, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(_ReviewStateActionBase, self).__init__(**kwargs)
 
     @property
     def event(self):
@@ -186,8 +180,7 @@ class CreateReviewComment(Action):
         self._body = body
         self._path = path
         self._position = position
-        super(CreateReviewComment, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(CreateReviewComment, self).__init__(**kwargs)
 
     def action(self):
         commit = list(self._stat_collection.commits)[-1]
@@ -210,8 +203,7 @@ class EditDescription(Action):
 
     def __init__(self, description, **kwargs):
         self._description = description
-        super(EditDescription, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(EditDescription, self).__init__(**kwargs)
 
     def action(self):
         self._stat_collection.pull_request.edit(body=self._description)
@@ -228,8 +220,7 @@ class SendEmailToUsers(Action):
         self._receivers = receivers
         self._subject = subject
         self._body = body
-        super(SendEmailToUsers, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(SendEmailToUsers, self).__init__(**kwargs)
 
     def action(self):
         from nudgebot import NudgeBot
@@ -253,8 +244,7 @@ class SendEmailToUsers(Action):
 class ReportForInactivity(Action):
 
     def __init__(self, **kwargs):
-        super(ReportForInactivity, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(ReportForInactivity, self).__init__(**kwargs)
 
     def action(self):
         last_update = self._stat_collection.last_update
@@ -280,8 +270,7 @@ class AskForReviewCommentReactions(Action):
     def __init__(self, days, hours, **kwargs):
         self._days = days
         self._hours = hours
-        super(AskForReviewCommentReactions, self).__init__(
-            kwargs.get('run_type', Action.DEFAULT_RUNTYPE))
+        super(AskForReviewCommentReactions, self).__init__(**kwargs)
 
     def action(self):
         emails_content, receviers = 'The following action required for this PR:\n', []
@@ -292,12 +281,15 @@ class AskForReviewCommentReactions(Action):
                 emails_content += ('{} is waiting for response for {} '
                                    'days and {} hours - comment: {}\n').format(
                     status['last_comment'].user.login, days, hours,
-                    status['last_comment'].comment_url)
+                    status['last_comment'].url)
                 receviers.extend([
                     status['last_comment'].user.email,
                     status['contributor'].user.email,
                     status['reviewer'].user.email
                 ])
+        if not all(receviers):
+            raise Exception('Cannot send email: some emails are missing')
+            # TODO: define appropriate exception
         if not receviers:
             return
         receviers = list(set(receviers))
