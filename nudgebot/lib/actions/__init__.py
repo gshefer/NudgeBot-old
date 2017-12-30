@@ -24,8 +24,8 @@ class Action(object):
     def name(self):
         return self.__class__.__name__
 
-    def define_stat_collection(self, stat_collection):
-        self._stat_collection = stat_collection
+    def load_pr_statistics(self, pr_statistics):
+        self._pr_statistics = pr_statistics
 
     def run(self):
         if config().config.testing_mode:
@@ -37,7 +37,7 @@ class Action(object):
 
     def _md5(self, *strings):
         checksum = md5.new()
-        checksum.update(str(self._stat_collection.number))
+        checksum.update(str(self._pr_statistics.number))
         for str_ in strings:
             checksum.update(str(str_))
         return checksum.hexdigest()
@@ -56,7 +56,7 @@ class PullRequestTitleTagSet(Action):
         super(PullRequestTitleTagSet, self).__init__(**kwargs)
 
     def action(self):
-        self._stat_collection.pull_request.title_tags = self._tags
+        self._pr_statistics.pull_request.title_tags = self._tags
         return {'title_tags': [tag.raw for tag in self._tags]}
 
     @property
@@ -71,7 +71,7 @@ class PullRequestTitleTagRemove(Action):
         super(PullRequestTitleTagRemove, self).__init__(**kwargs)
 
     def action(self):
-        self._stat_collection.pull_request.remove_title_tags(*self._tags)
+        self._pr_statistics.pull_request.remove_title_tags(*self._tags)
         return {'title_tags': [tag.raw for tag in self._tags]}
 
     @property
@@ -86,7 +86,7 @@ class AddReviewer(Action):
         super(AddReviewer, self).__init__(**kwargs)
 
     def action(self):
-        self._stat_collection.pull_request.add_reviewers([self._reviewer])
+        self._pr_statistics.pull_request.add_reviewers([self._reviewer])
         return {'reviewer': self._reviewer.login}
 
     @property
@@ -102,9 +102,9 @@ class AddReviewerFromPool(Action):
         super(AddReviewerFromPool, self).__init__(**kwargs)
 
     def action(self):
-        self._reviewer = self._stat_collection.repo.reviewers_pool.pull_reviewer(
-            self._level, self._stat_collection.pull_request)
-        self._stat_collection.pull_request.add_reviewers([self._reviewer])
+        self._reviewer = self._pr_statistics.repo.reviewers_pool.pull_reviewer(
+            self._level, self._pr_statistics.pull_request)
+        self._pr_statistics.pull_request.add_reviewers([self._reviewer])
         return {'reviewer': self._reviewer.login}
 
     @property
@@ -119,7 +119,7 @@ class RemoveReviewer(Action):
         super(RemoveReviewer, self).__init__(**kwargs)
 
     def action(self):
-        self._stat_collection.pull_request.remove_reviewers([self._reviewer])
+        self._pr_statistics.pull_request.remove_reviewers([self._reviewer])
         return {'reviewer': [reviewer.login for reviewer in self._reviewer]}
 
     @property
@@ -134,7 +134,7 @@ class CreateIssueComment(Action):
         super(CreateIssueComment, self).__init__(**kwargs)
 
     def action(self):
-        comment = self._stat_collection.pull_request.create_issue_comment(self._body)
+        comment = self._pr_statistics.pull_request.create_issue_comment(self._body)
         return {'body': self._body, 'created_at': comment.created_at}
 
     @property
@@ -154,9 +154,9 @@ class _ReviewStateActionBase(Action):
         return getattr(self, 'EVENT', self.STATE)
 
     def action(self):
-        self._stat_collection.pull_request.add_reviewers([self._github_obj])
-        review = self._stat_collection.pull_request.create_review(
-            list(self._stat_collection.commits)[-1], self._body or self.STATE, self.event)
+        self._pr_statistics.pull_request.add_reviewers([self._github_obj])
+        review = self._pr_statistics.pull_request.create_review(
+            list(self._pr_statistics.commits)[-1], self._body or self.STATE, self.event)
         return {'review_id': review.id}
 
     @property
@@ -183,8 +183,8 @@ class CreateReviewComment(Action):
         super(CreateReviewComment, self).__init__(**kwargs)
 
     def action(self):
-        commit = list(self._stat_collection.commits)[-1]
-        review_comment = self._stat_collection.pull_request.create_review_comment(
+        commit = list(self._pr_statistics.commits)[-1]
+        review_comment = self._pr_statistics.pull_request.create_review_comment(
             self._body, commit, self._path, self._position)
         return {
             'review_comment': {
@@ -206,7 +206,7 @@ class EditDescription(Action):
         super(EditDescription, self).__init__(**kwargs)
 
     def action(self):
-        self._stat_collection.pull_request.edit(body=self._description)
+        self._pr_statistics.pull_request.edit(body=self._description)
         return {'description': self._description}
 
     @property
@@ -247,11 +247,11 @@ class ReportForInactivity(Action):
         super(ReportForInactivity, self).__init__(**kwargs)
 
     def action(self):
-        last_update = self._stat_collection.last_update
+        last_update = self._pr_statistics.last_update
         seconds_ago = int((datetime.now() - last_update).total_seconds())
         days = seconds_ago / 86400
         hours = (seconds_ago - days * 86400) / 3600
-        comment = self._stat_collection.pull_request.create_issue_comment(
+        comment = self._pr_statistics.pull_request.create_issue_comment(
             ('Pull request is inactive for {} days and {} hours- please do'
              ' some action - update it or close it').format(days, hours)
         )
@@ -262,7 +262,7 @@ class ReportForInactivity(Action):
 
     @property
     def hash(self):
-        return self._md5(self._stat_collection.last_update)
+        return self._md5(self._pr_statistics.last_update)
 
 
 class AskForReviewCommentReactions(Action):
@@ -274,7 +274,7 @@ class AskForReviewCommentReactions(Action):
 
     def action(self):
         emails_content, receviers = 'The following action required for this PR:\n', []
-        for status in self._stat_collection.review_comment_reaction_statuses:
+        for status in self._pr_statistics.review_comment_reaction_statuses:
             if status['age_seconds'] > (self._days * 86400 + self._hours * 3600):
                 days = int(status['age_seconds']) / 86400
                 hours = (int(status['age_seconds']) - days * 86400) / 3600
@@ -293,7 +293,7 @@ class AskForReviewCommentReactions(Action):
         if not receviers:
             return
         receviers = list(set(receviers))
-        subject = 'PR#{} is waiting for response'.format(self._stat_collection.number)
+        subject = 'PR#{} is waiting for response'.format(self._pr_statistics.number)
         from nudgebot import NudgeBot
         NudgeBot().send_email(receviers, subject, emails_content)
         return {

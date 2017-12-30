@@ -17,8 +17,8 @@ class Case(object):
     def name(self):
         return self.__class__.__name__
 
-    def define_stat_collection(self, stat_collection):
-        self._stat_collection = stat_collection
+    def load_pr_statistics(self, pr_statistics):
+        self._pr_statistics = pr_statistics
 
     def check_state(self):
         raise NotImplementedError()
@@ -32,7 +32,7 @@ class Case(object):
     def _md5(self, *args):
         strings = [str(arg) for arg in args]
         checksum = md5.new()
-        checksum.update(str(self._stat_collection.number))
+        checksum.update(str(self._pr_statistics.number))
         checksum.update(self.__class__.__name__)
         checksum.update(str(self._not_case))
         for str_ in strings:
@@ -54,7 +54,7 @@ class PullRequestHasTitleTag(Case):
 
     def check_state(self):
         for tag in self._tag_options:
-            for exists_tag in self._stat_collection.title_tags:
+            for exists_tag in self._pr_statistics.title_tags:
                 if (tag.match(exists_tag.name) if isinstance(tag, re._pattern_type)
                         else tag.lower() == exists_tag.name.lower()):
                         return True
@@ -73,7 +73,7 @@ class ReviewerWasSet(Case):
         super(ReviewerWasSet, self).__init__(*args, **kwargs)
 
     def check_state(self):
-        return self._level <= len(self._stat_collection.reviewers)
+        return self._level <= len(self._pr_statistics.reviewers)
 
     @property
     def hash(self):
@@ -88,8 +88,8 @@ class ReviewerApproved(Case):
 
     def check_state(self):
         approvals = 0
-        for reviewer, state in self._stat_collection.review_states_by_user.items():
-            if (reviewer in self._stat_collection.repo.reviewers_pool.reviewers and
+        for reviewer, state in self._pr_statistics.review_states_by_user.items():
+            if (reviewer in self._pr_statistics.repo.reviewers_pool.reviewers and
                     state == Approve.STATE):
                 approvals += 1
         return approvals == self._level
@@ -107,12 +107,12 @@ class InactivityForPeriod(Case):
         super(InactivityForPeriod, self).__init__(*args, **kwargs)
 
     def check_state(self):
-        timedelta = datetime.now() - self._stat_collection.last_update
+        timedelta = datetime.now() - self._pr_statistics.last_update
         return timedelta.total_seconds() > (self._days * 86400 + self._hours * 3600)
 
     @property
     def hash(self):
-        return self._md5(self._stat_collection.last_update)
+        return self._md5(self._pr_statistics.last_update)
 
 
 class WaitingForReviewCommentReaction(Case):
@@ -123,7 +123,7 @@ class WaitingForReviewCommentReaction(Case):
         super(WaitingForReviewCommentReaction, self).__init__(*args, **kwargs)
 
     def check_state(self):
-        for status in self._stat_collection.review_comment_reaction_statuses:
+        for status in self._pr_statistics.review_comment_reaction_statuses:
             if status['age_seconds'] > (self._days * 86400 + self._hours * 3600):
                 return True
         return False
@@ -133,7 +133,7 @@ class WaitingForReviewCommentReaction(Case):
         last_comments_hash = ''.join([
             status['last_comment'].user.login +
             status['last_comment'].created_at.strftime('%d-%m-%y-%H-%M-%S')
-            for status in self._stat_collection.review_comment_reaction_statuses
+            for status in self._pr_statistics.review_comment_reaction_statuses
         ])
         return self._md5(last_comments_hash, self._days, self._hours)
 
@@ -146,14 +146,14 @@ class DescriptionInclude(Case):
 
     def check_state(self):
         if isinstance(self._text, re._pattern_type):
-            return bool(self._text.search(self._stat_collection.description))
-        return self._text in self._stat_collection.description
+            return bool(self._text.search(self._pr_statistics.description))
+        return self._text in self._pr_statistics.description
 
     @property
     def hash(self):
         return self._md5(
             getattr(self._text, 'pattern', self._text),
-            self._stat_collection.description
+            self._pr_statistics.description
         )
 
 
@@ -164,7 +164,7 @@ class CurrentRepoName(Case):
         super(CurrentRepoName, self).__init__(*args, **kwargs)
 
     def check_state(self):
-        return self._stat_collection.repo.name == self._name
+        return self._pr_statistics.repo.name == self._name
 
     @property
     def hash(self):

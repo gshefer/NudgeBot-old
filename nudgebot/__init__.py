@@ -54,7 +54,7 @@ class NudgeBot(object):
             cases_checksum = md5.new()
         if isinstance(tree, dict):
             for case, node in tree.items():
-                case.define_stat_collection(stat_collection)
+                case.load_pr_statistics(stat_collection)
                 if case.state:
                     cases_checksum.update(case.hash)
                     self._process_flow(session_id, stat_collection, node, cases_checksum)
@@ -63,7 +63,7 @@ class NudgeBot(object):
                 self._process_flow(session_id, stat_collection, action, cases_checksum)
         elif isinstance(tree, Action):
             action = tree
-            action.define_stat_collection(stat_collection)
+            action.load_pr_statistics(stat_collection)
             is_done = ([record for record in db().records.find({
                            'case_checksum': cases_checksum.hexdigest(),
                            'action.checksum': action.hash})
