@@ -2,8 +2,8 @@ import md5
 from datetime import datetime
 
 from common import ExtendedEnum
-from nudgebot.lib.github.users import BotUser
 from config import config
+from nudgebot.lib.github.users import BotUser
 from nudgebot.lib.github.pull_request import PullRequestTitleTag
 
 

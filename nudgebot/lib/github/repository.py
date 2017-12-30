@@ -1,8 +1,8 @@
 from cached_property import cached_property
 
+from config import config
 from nudgebot.lib.github.pull_request import PullRequest
 from nudgebot.lib.github.reviewers_pool import ReviewersPool
-from config import config
 
 
 class Repository(object):
