@@ -10,7 +10,7 @@ from email.utils import COMMASPACE, formatdate
 
 from config import config
 from common import Singleton
-from nudgebot.lib.github.actions import Action, RUN_TYPES
+from nudgebot.lib.actions import Action, RUN_TYPES
 from nudgebot.db import db
 from nudgebot.lib.github.pull_request_statistics import PullRequestStatistics
 from nudgebot.flow import FLOW

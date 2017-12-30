@@ -3,7 +3,6 @@ from datetime import datetime
 from cached_property import cached_property
 
 from nudgebot.lib.github.users import ReviewerUser
-from nudgebot.lib.github.actions import RequestChanges
 
 
 class PullRequestStatistics(object):
@@ -105,7 +104,7 @@ class PullRequestStatistics(object):
             if not thread.outdated:
                 last_comment = thread.last_comment
                 reviewer = ReviewerUser(thread.first_comment.user.login)
-                is_require_changes = review_states.get(reviewer) == RequestChanges.STATE
+                is_require_changes = review_states.get(reviewer) == 'CHANGES_REQUESTED'
                 if is_require_changes:
                     age_seconds = (datetime.now() - last_comment.created_at).total_seconds()
                     statuses.append({

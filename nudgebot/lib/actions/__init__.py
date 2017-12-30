@@ -1,8 +1,8 @@
 import md5
 from datetime import datetime
 
-from common import ExtendedEnum
 from config import config
+from common import ExtendedEnum
 from nudgebot.lib.github.users import BotUser
 from nudgebot.lib.github.pull_request import PullRequestTitleTag
 
@@ -13,7 +13,7 @@ class RUN_TYPES(ExtendedEnum):
 
 
 class Action(object):
-    """A base class for action"""
+    """A base class for an action"""
     DEFAULT_RUNTYPE = RUN_TYPES.ONCE
     _github_obj = BotUser()
 

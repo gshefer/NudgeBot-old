@@ -1,13 +1,13 @@
 import re
 
 from config import config
-from nudgebot.lib.github.cases import (PullRequestHasTitleTag, DescriptionInclude,
-                                       ReviewerWasSet, InactivityForPeriod,
-                                       ReviewerApproved, WaitingForReviewCommentReaction,
-                                       CurrentRepoName)
-from nudgebot.lib.github.actions import (PullRequestTitleTagSet, RUN_TYPES,
-                                         CreateIssueComment, AddReviewerFromPool,
-                                         ReportForInactivity, AskForReviewCommentReactions)
+from nudgebot.lib.cases import (PullRequestHasTitleTag, DescriptionInclude,
+                                ReviewerWasSet, InactivityForPeriod,
+                                ReviewerApproved, WaitingForReviewCommentReaction,
+                                CurrentRepoName)
+from nudgebot.lib.actions import (PullRequestTitleTagSet, RUN_TYPES,
+                                  CreateIssueComment, AddReviewerFromPool,
+                                  ReportForInactivity, AskForReviewCommentReactions)
 
 PRstates = ['WIP', 'BLOCKED', 'WIPTEST', 'RFR']
 

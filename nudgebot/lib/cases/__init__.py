@@ -2,11 +2,11 @@ import md5
 import re
 from datetime import datetime
 
-from nudgebot.lib.github.actions import Approve
+from nudgebot.lib.actions import Approve
 
 
 class Case(object):
-
+    """A base class for a case"""
     def __init__(self, not_case=False):
         self._not_case = not_case
 
