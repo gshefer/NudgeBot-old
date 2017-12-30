@@ -27,16 +27,16 @@ class ReviewCommentThread(object):
         self._comments.append(comment)
 
     @property
-    def issue_comments(self):
+    def comments(self):
         return sorted(self._comments, key=lambda c: c.created_at)
 
     @property
     def first_comment(self):
-        return self.issue_comments[0]
+        return self.comments[0]
 
     @property
     def last_comment(self):
-        return self.issue_comments[-1]
+        return self.comments[-1]
 
     @cached_property
     def path(self):

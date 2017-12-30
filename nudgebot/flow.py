@@ -21,15 +21,18 @@ FLOW = {
                                    run_type=RUN_TYPES.ALWAYS),
                 PullRequestTitleTagSet('WIP', run_type=RUN_TYPES.ALWAYS)
             ],
+        PullRequestHasTitleTag(['WIP', 'WIPTEST']): {
+            WaitingForReviewCommentReaction(2, 0): AskForReviewCommentReactions(2, 0)
+        },
         PullRequestHasTitleTag('RFR'): {
             ReviewerWasSet(level=1, not_case=True): AddReviewerFromPool(1),
             ReviewerApproved(level=1): {
                 ReviewerWasSet(level=2, not_case=True): AddReviewerFromPool(2),
                 PullRequestHasTitleTag(re.compile('\d+LP'), not_case=True): PullRequestTitleTagSet('1LP')
             },
-            InactivityForPeriod(3, 0): ReportForInactivity(),
-            InactivityForPeriod(7, 0): ReportForInactivity(),
             WaitingForReviewCommentReaction(2, 0): AskForReviewCommentReactions(2, 0)
-        }
+        },
+        InactivityForPeriod(3, 0): ReportForInactivity(),
+        InactivityForPeriod(7, 0): ReportForInactivity(),
     }
 }

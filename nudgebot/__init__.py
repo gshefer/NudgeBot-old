@@ -98,9 +98,3 @@ class NudgeBot(object):
                 break
             if one_session:
                 break
-
-
-if __name__ == '__main__':
-
-    nudge_bot = NudgeBot()
-    nudge_bot.run(one_session=True)

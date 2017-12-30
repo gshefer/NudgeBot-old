@@ -2,7 +2,7 @@ import md5
 import re
 from datetime import datetime
 
-from nudgebot.lib.actions import Approve
+from nudgebot.lib.actions import Approve, RequestChanges
 
 
 class Case(object):
@@ -78,6 +78,25 @@ class ReviewerWasSet(Case):
                 if self._level == self._pr_statistics.repo.reviewers_pool.get_level(reviewer):
                     return True
         return False
+
+    @property
+    def hash(self):
+        return self._md5(self._level)
+
+
+class ReviewerRequestChanges(Case):
+
+    def __init__(self, level=1, *args, **kwargs):
+        self._level = level
+        super(ReviewerRequestChanges, self).__init__(*args, **kwargs)
+
+    def check_state(self):
+        approvals = 0
+        for reviewer, state in self._pr_statistics.review_states_by_user.items():
+            if (reviewer in self._pr_statistics.repo.reviewers_pool.reviewers and
+                    state == RequestChanges.STATE):
+                approvals += 1
+        return approvals == self._level
 
     @property
     def hash(self):
