@@ -73,7 +73,11 @@ class ReviewerWasSet(Case):
         super(ReviewerWasSet, self).__init__(*args, **kwargs)
 
     def check_state(self):
-        return self._level <= len(self._pr_statistics.reviewers)
+        if self._level <= len(self._pr_statistics.reviewers):
+            for reviewer in self._pr_statistics.reviewers:
+                if self._level == self._pr_statistics.repo.reviewers_pool.get_level(reviewer):
+                    return True
+        return False
 
     @property
     def hash(self):

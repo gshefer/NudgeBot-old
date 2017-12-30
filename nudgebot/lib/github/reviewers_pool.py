@@ -17,9 +17,24 @@ class ReviewersPool(object):
     def pool(self):
         return self._pool
 
+    def get_reviewers(self, level=-1):
+        out = []
+        for login in self._pool:
+            if level == -1:
+                out.append(login)
+            elif self._pool[login]['level'] == level:
+                out.append(login)
+        return out
+
     @property
     def reviewers(self):
-        return self._pool.keys()
+        return self.get_reviewers()
+
+    def get_level(self, reviewer):
+        if reviewer not in self._pool:
+            # TODO: define appropriate exception
+            raise Exception('Reviewer not found in the pool: {}'.format(reviewer))
+        return self._pool[reviewer]['level']
 
     def sync(self):
         for level, logins in enumerate(self._repository.config.reviewers):
