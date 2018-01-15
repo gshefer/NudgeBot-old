@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
 import json
 import re
 
@@ -9,6 +8,7 @@ import requests
 
 from .users import User, ContributorUser, ReviewerUser
 from config import config
+from common import Age
 
 
 class ReviewCommentThread(object):
@@ -83,8 +83,8 @@ class PullRequestTitleTag(object):
         return detected_tags
 
     def __init__(self, tag):
-        assert isinstance(tag, basestring)
-        self._tag = tag.upper()
+        self._tag = (tag.raw if isinstance(tag, self.__class__)
+                     else tag)
 
     def __eq__(self, other):
         return self._tag == getattr(other, '_tag', None)
@@ -198,7 +198,7 @@ class PullRequest(object):
         # Filtering reviewers that not in the pool and updating the pool
         for reviewer in reviewers:
             if reviewer in self.repo.reviewers_pool.reviewers:
-                self.repo.reviewers_pool.update_reviewer_stat(reviewer, self.number)
+                self.repo.reviewers_pool.attach_pr_to_reviewer(reviewer, self.number)
             else:
                 reviewers.remove(reviewer)
         return reviewers
@@ -264,8 +264,7 @@ class PullRequest(object):
 
     @property
     def age(self):
-        now = datetime.now()
-        return now - self._github_obj.created_at
+        return Age(self._github_obj.created_at)
 
     @property
     def review_comments(self):
@@ -303,3 +302,11 @@ class PullRequest(object):
     @property
     def last_update(self):
         return self._github_obj.updated_at
+
+    @property
+    def last_update_age(self):
+        return Age(self.last_update)
+
+    @property
+    def last_code_update_age(self):
+        return Age(self.last_code_update)

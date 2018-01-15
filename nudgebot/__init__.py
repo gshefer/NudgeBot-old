@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import github
 import md5
 import smtplib
 from email import encoders
@@ -49,52 +48,52 @@ class NudgeBot(object):
         smtpObj = smtplib.SMTP('localhost')
         smtpObj.sendmail(self._email_addr, receivers, msg.as_string())
 
-    def _process_flow(self, session_id, stat_collection, tree, cases_checksum=None):
+    def _process_flow(self, stat_collection, tree, cases_properties=None, cases_checksum=None):
         if not cases_checksum:
             cases_checksum = md5.new()
+        if cases_properties is None:
+            cases_properties = []
         if isinstance(tree, dict):
             for case, node in tree.items():
                 case.load_pr_statistics(stat_collection)
                 if case.state:
                     cases_checksum.update(case.hash)
-                    self._process_flow(session_id, stat_collection, node, cases_checksum)
+                    cases_properties.append(case.properties)
+                    self._process_flow(stat_collection, node, cases_properties, cases_checksum)
         elif isinstance(tree, (list, tuple)):
             for action in tree:
-                self._process_flow(session_id, stat_collection, action, cases_checksum)
+                self._process_flow(stat_collection, action, cases_properties, cases_checksum)
         elif isinstance(tree, Action):
             action = tree
             action.load_pr_statistics(stat_collection)
             is_done = ([record for record in db().records.find({
-                           'case_checksum': cases_checksum.hexdigest(),
+                           'cases_checksum': cases_checksum.hexdigest(),
                            'action.checksum': action.hash})
                         ])
             if not is_done or action.run_type == RUN_TYPES.ALWAYS:
-                action_properties = action.run()
-                db().add_record(session_id, cases_checksum.hexdigest(), action, action_properties)
+                action.run()
+                db().add_record(cases_properties, cases_checksum.hexdigest(), action)
 
-    def process(self, session_id,  pull_request_stat_collection):
-        return self._process_flow(session_id, pull_request_stat_collection, FLOW)
+    def process(self,  pull_request_stats):
+        return self._process_flow(pull_request_stats, FLOW)
 
-    def work(self):
-        session = db().new_session()
+    def initialize(self):
         for repo in GithubEnv().repos:
-            repo.reviewers_pool.sync()
+            repo.reviewers_pool.initialize()
             for pr in repo.get_pull_requests():
                 pr_stat = PullRequestStatistics(pr)
-                self.process(session['id'], pr_stat)
-                if config().config.report.send_report:
-                    db().add_stat(session['id'], pr_stat.json)
-        if config().config.report.send_report:
-            Reporter().send_report([stat for stat in db().stats.find(
-                {'session_id': session['id']})])
+                self.process(pr_stat)
+                db().update_pr_stats(pr_stat.json)
 
-    def run(self, one_session=True):
-        if config().config.debug_mode:
-            github.enable_console_debug_logging()
-        while True:
-            try:
-                self.work()
-            except KeyboardInterrupt:
-                break
-            if one_session:
-                break
+    def send_report(self):
+        if config().config.report.send_report:
+            Reporter().send_report([stat for stat in db().stats.find()])
+
+    def process_github_event(self, json_data):
+        repository = [repo for repo in GithubEnv().repos
+                      if repo.name == json_data.get('repository', {}).get('name')].pop()
+        pull_request_number = json_data.get('pull_request', {}).get('number')
+        if pull_request_number:
+            pr_stat = PullRequestStatistics(repository.get_pull_request(pull_request_number))
+            self.process(pr_stat)
+            db().update_pr_stats(pr_stat.json)

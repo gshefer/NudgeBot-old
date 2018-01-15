@@ -14,6 +14,9 @@ class Repository(object):
     def __getattr__(self, name):
         return getattr(self._github_obj, name)
 
+    def get_pull_request(self, number):
+        return PullRequest(self, self._github_obj.get_pull(number))
+
     def get_pull_requests(self, **filters):
         """
         Args (filters):

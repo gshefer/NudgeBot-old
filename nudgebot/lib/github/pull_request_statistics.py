@@ -67,6 +67,18 @@ class PullRequestStatistics(object):
         return self._pull_request.last_update
 
     @cached_property
+    def last_update_age(self):
+        return self._pull_request.last_update_age
+
+    @cached_property
+    def last_code_update_age(self):
+        return self._pull_request.last_code_update_age
+
+    @cached_property
+    def time_since_last_update(self):
+        return datetime.now() - self.last_update
+
+    @cached_property
     def title_tags(self):
         return self._pull_request.title_tags
 
@@ -119,27 +131,21 @@ class PullRequestStatistics(object):
     def json(self):
         """Get the object data as dictionary"""
         last_review_comment = self.last_review_comment
-        age_total_seconds = int(self.age.total_seconds())
-        days_ago = age_total_seconds / 86400
-        hours_ago = (age_total_seconds - days_ago * 86400) / 3600
         data = {
             'number': self.number,
             'title': self.title,
             'owner': self.owner.login,
             'description': self.description,
-            'age': {
-                'days': days_ago,
-                'hours': hours_ago
-            },
+            'age': self.age.json,
             'organization': getattr(self.org, 'login', self.org.name),
             'repository': self.repo.name,
-            'last_update': str(self.last_update),
+            'last_update': self.last_update_age.json,
             'test_results': self.test_results,
             'title_tags': [tt.name for tt in self.title_tags],
             'reviewers': [reviewer.login for reviewer in self.reviewers],
             'review_states_by_user': {user.login: state for user, state in self.review_states_by_user.items()},
             'last_review_comment': {'login': '', 'body': '', 'updated_at': ''},
-            'last_code_update': str(self.last_code_update)
+            'last_code_update': self.last_code_update_age.json
         }
         if last_review_comment:
             data['last_review_comment'] = {

@@ -1,4 +1,5 @@
 from enum import Enum
+from datetime import datetime
 
 
 class ExtendedEnum(Enum):
@@ -41,3 +42,29 @@ class Singleton(type):
         if self not in self._instances:
             self._instances[self] = super(Singleton, self).__call__(*args, **kwargs)
         return self._instances[self]
+
+
+class Age(object):
+
+    def __init__(self, datetime_obj):
+        self._datetime_obj = datetime_obj.replace(tzinfo=None)
+
+    @property
+    def total_seconds(self):
+        return int((datetime.now() - self._datetime_obj).total_seconds())
+
+    @property
+    def days(self):
+        return self.total_seconds / 86400
+
+    @property
+    def hours(self):
+        return (self.total_seconds - self.days * 86400) / 3600
+
+    @property
+    def json(self):
+        return {'days': self.days, 'hours': self.hours, 'total_seconds': self.total_seconds}
+
+    @property
+    def pretty(self):
+        return '{} days and {} hours'.format(self.days, self.hours)

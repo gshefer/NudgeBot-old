@@ -1,35 +1,36 @@
 import md5
-from datetime import datetime
+import attr
 
 from config import config
-from common import ExtendedEnum
+from common import Age
 from nudgebot.lib.github.users import BotUser
 from nudgebot.lib.github.pull_request import PullRequestTitleTag
 
 
-class RUN_TYPES(ExtendedEnum):
+class RUN_TYPES:
     ONCE = 'Once'
     ALWAYS = 'Always'
 
 
 class Action(object):
     """A base class for an action"""
-    DEFAULT_RUNTYPE = RUN_TYPES.ONCE
+    run_type = RUN_TYPES.ONCE
     _github_obj = BotUser()
-
-    def __init__(self, **kwargs):
-        self.run_type = kwargs.get('run_type') or self.DEFAULT_RUNTYPE
-
-    @property
-    def name(self):
-        return self.__class__.__name__
 
     def load_pr_statistics(self, pr_statistics):
         self._pr_statistics = pr_statistics
 
+    @property
+    def class_name(self):
+        return self.__class__.__name__
+
+    @property
+    def properties(self):
+        return attr.asdict(self)
+
     def run(self):
         if config().config.testing_mode:
-            return {}
+            return
         return self.action()
 
     def action(self):
@@ -47,107 +48,96 @@ class Action(object):
         raise NotImplementedError()
 
 
+@attr.s
 class PullRequestTitleTagSet(Action):
-
-    def __init__(self, *title_tags, **kwargs):
-        self._tags = [tag if isinstance(tag, PullRequestTitleTag)
-                      else PullRequestTitleTag(tag)
-                      for tag in title_tags]
-        super(PullRequestTitleTagSet, self).__init__(**kwargs)
+    title_tags = attr.ib(default=attr.Factory(list))
+    override = attr.ib(default=False)
+    run_type = attr.ib(default=Action.run_type)
 
     def action(self):
-        self._pr_statistics.pull_request.title_tags = self._tags
-        return {'title_tags': [tag.raw for tag in self._tags]}
+        self.title_tags = [PullRequestTitleTag(tag) for tag in self.title_tags]
+        current_tags = self._pr_statistics.pull_request.title_tags
+        new_tags = (self.title_tags if self.override
+                    else list(set(self.title_tags + current_tags)))
+        self._pr_statistics.pull_request.title_tags = new_tags
 
     @property
     def hash(self):
-        return self._md5('+', *[tag.raw for tag in self._tags])
+        return self._md5('+', *[PullRequestTitleTag(tag).raw for tag in self.title_tags])
 
 
+@attr.s
 class PullRequestTitleTagRemove(Action):
-
-    def __init__(self, *title_tags, **kwargs):
-        self._tags = title_tags
-        super(PullRequestTitleTagRemove, self).__init__(**kwargs)
+    title_tags = attr.ib(default=attr.Factory(list))
+    run_type = attr.ib(default=Action.run_type)
 
     def action(self):
-        self._pr_statistics.pull_request.remove_title_tags(*self._tags)
-        return {'title_tags': [tag.raw for tag in self._tags]}
+        self._pr_statistics.pull_request.remove_title_tags(*self.title_tags)
 
     @property
     def hash(self):
-        return self._md5('-', *[tag.raw for tag in self._tags])
+        return self._md5('-', *[PullRequestTitleTag(tag).raw for tag in self.title_tags])
 
 
+@attr.s
 class AddReviewer(Action):
+    reviewer = attr.ib(default=None)
+    level = attr.ib(default=1)
+    run_type = attr.ib(default=Action.run_type)
 
-    def __init__(self, reviewer, **kwargs):
-        self._reviewer = reviewer
-        super(AddReviewer, self).__init__(**kwargs)
+    @property
+    def properties(self):
+        out = attr.asdict(self)
+        out['reviewer'] = out['reviewer'].login
+        return out
 
     def action(self):
-        self._pr_statistics.pull_request.add_reviewers([self._reviewer])
-        return {'reviewer': self._reviewer.login}
+        if not self.reviewer:
+            self.reviewer = self._pr_statistics.repo.reviewers_pool.pull_reviewer(
+                self.level, self._pr_statistics.pull_request)
+        self._pr_statistics.pull_request.add_reviewers([self.reviewer])
 
     @property
     def hash(self):
-        return self._md5('+', self._reviewer)
+        return self._md5('+', self.reviewer)
 
 
-class AddReviewerFromPool(Action):
-
-    def __init__(self, level, **kwargs):
-        self._level = level
-        self._reviewer = None  # Defined in action
-        super(AddReviewerFromPool, self).__init__(**kwargs)
-
-    def action(self):
-        self._reviewer = self._pr_statistics.repo.reviewers_pool.pull_reviewer(
-            self._level, self._pr_statistics.pull_request)
-        self._pr_statistics.pull_request.add_reviewers([self._reviewer])
-        return {'reviewer': self._reviewer.login}
-
-    @property
-    def hash(self):
-        return self._md5()
-
-
+@attr.s
 class RemoveReviewer(Action):
+    reviewer = attr.ib()
+    run_type = attr.ib(default=Action.run_type)
 
-    def __init__(self, reviewer, **kwargs):
-        self._reviewer = reviewer
-        super(RemoveReviewer, self).__init__(**kwargs)
+    @property
+    def properties(self):
+        out = attr.asdict(self)
+        out['reviewer'] = out['reviewer'].login
+        return out
 
     def action(self):
-        self._pr_statistics.pull_request.remove_reviewers([self._reviewer])
-        return {'reviewer': [reviewer.login for reviewer in self._reviewer]}
+        self._pr_statistics.pull_request.remove_reviewers([self.reviewer])
 
     @property
     def hash(self):
-        return self._md5('-', self._reviewer)
+        return self._md5('-', self.reviewer)
 
 
+@attr.s
 class CreateIssueComment(Action):
-
-    def __init__(self, body, **kwargs):
-        self._body = body
-        super(CreateIssueComment, self).__init__(**kwargs)
+    body = attr.ib()
+    run_type = attr.ib(default=Action.run_type)
 
     def action(self):
-        comment = self._pr_statistics.pull_request.create_issue_comment(self._body)
-        return {'body': self._body, 'created_at': comment.created_at}
+        self._pr_statistics.pull_request.create_issue_comment(self.body)
 
     @property
     def hash(self):
-        return self._md5(self._body)
+        return self._md5(self.body)
 
 
+@attr.s
 class _ReviewStateActionBase(Action):
     STATE = 'PENDING'
-
-    def __init__(self, body=None, **kwargs):
-        self._body = body
-        super(_ReviewStateActionBase, self).__init__(**kwargs)
+    run_type = attr.ib(default=Action.run_type)
 
     @property
     def event(self):
@@ -155,83 +145,70 @@ class _ReviewStateActionBase(Action):
 
     def action(self):
         self._pr_statistics.pull_request.add_reviewers([self._github_obj])
-        review = self._pr_statistics.pull_request.create_review(
-            list(self._pr_statistics.commits)[-1], self._body or self.STATE, self.event)
-        return {'review_id': review.id}
+        self._pr_statistics.pull_request.create_review(
+            list(self._pr_statistics.commits)[-1], self.body or self.STATE, self.event)
 
     @property
     def hash(self):
-        return self._md5('+', self.event, self._body)
+        return self._md5('+', self.event, self.body)
 
 
+@attr.s
 class RequestChanges(_ReviewStateActionBase):
     EVENT = 'REQUEST_CHANGES'
     STATE = 'CHANGES_REQUESTED'
+    body = attr.ib(default=None)
 
 
+@attr.s
 class Approve(_ReviewStateActionBase):
     EVENT = 'APPROVE'
     STATE = 'APPROVED'
+    body = attr.ib(default=None)
 
 
+@attr.s
 class CreateReviewComment(Action):
-
-    def __init__(self, body, path=None, position=None, **kwargs):
-        self._body = body
-        self._path = path
-        self._position = position
-        super(CreateReviewComment, self).__init__(**kwargs)
+    body = attr.ib()
+    path = attr.ib(default=None)
+    position = attr.ib(default=None)
+    run_type = attr.ib(default=Action.run_type)
 
     def action(self):
         commit = list(self._pr_statistics.commits)[-1]
-        review_comment = self._pr_statistics.pull_request.create_review_comment(
-            self._body, commit, self._path, self._position)
-        return {
-            'review_comment': {
-                'body': review_comment.body,
-                'path': review_comment.path,
-                'line': review_comment.original_position
-            }
-        }
+        self._pr_statistics.pull_request.create_review_comment(
+            self.body, commit, self.path, self.position)
 
     @property
     def hash(self):
-        return self._md5('+', self._body, self._path, self._position)
+        return self._md5('+', self.body, self.path, self.position)
 
 
+@attr.s
 class EditDescription(Action):
-
-    def __init__(self, description, **kwargs):
-        self._description = description
-        super(EditDescription, self).__init__(**kwargs)
+    description = attr.ib()
+    run_type = attr.ib(default=Action.run_type)
 
     def action(self):
         self._pr_statistics.pull_request.edit(body=self._description)
-        return {'description': self._description}
 
     @property
     def hash(self):
-        return self._md5(self._description)
+        return self._md5(self.description)
 
 
+@attr.s
 class SendEmailToUsers(Action):
-
-    def __init__(self, receivers, subject, body, **kwargs):
-        self._receivers = receivers
-        self._subject = subject
-        self._body = body
-        super(SendEmailToUsers, self).__init__(**kwargs)
+    receivers = attr.ib()
+    subject = attr.ib()
+    body = attr.ib()
+    run_type = attr.ib(default=Action.run_type)
 
     def action(self):
         from nudgebot import NudgeBot
         # TODO: Check if the user has email - if not ask for it
         receivers = [user.email for user in self._receivers]
         NudgeBot().send_email(receivers, self._subject, self._body)
-        return {
-            'receivers': receivers,
-            'subject': self._subject,
-            'body': self._body
-        }
 
     @property
     def hash(self):
@@ -241,64 +218,65 @@ class SendEmailToUsers(Action):
         )
 
 
+@attr.s
 class ReportForInactivity(Action):
-
-    def __init__(self, **kwargs):
-        super(ReportForInactivity, self).__init__(**kwargs)
+    run_type = attr.ib(default=Action.run_type)
 
     def action(self):
-        last_update = self._pr_statistics.last_update
-        seconds_ago = int((datetime.now() - last_update).total_seconds())
-        days = seconds_ago / 86400
-        hours = (seconds_ago - days * 86400) / 3600
-        comment = self._pr_statistics.pull_request.create_issue_comment(
-            ('Pull request is inactive for {} days and {} hours- please do'
-             ' some action - update it or close it').format(days, hours)
+        last_update = Age(self._pr_statistics.last_update)
+        self._pr_statistics.pull_request.create_issue_comment(
+            ('Pull request is inactive for {}- please do'
+             ' some action, update it or close it').format(last_update.pretty)
         )
-        return {
-            'inactivity': {'days': days, 'hours': hours},
-            'comment': {'body': comment.body, 'created_at': comment.created_at}
-        }
 
     @property
     def hash(self):
         return self._md5(self._pr_statistics.last_update)
 
 
+@attr.s
 class AskForReviewCommentReactions(Action):
-
-    def __init__(self, days, hours, **kwargs):
-        self._days = days
-        self._hours = hours
-        super(AskForReviewCommentReactions, self).__init__(**kwargs)
+    days = attr.ib()
+    hours = attr.ib()
+    prompt_missing_emails = attr.ib(default=False)
+    run_type = attr.ib(default=Action.run_type)
 
     def action(self):
-        emails_content, receviers = 'The following action required for this PR:\n', []
+        # TODO: convert to age
+        emails_content, receviers = 'The following action required for this PR:\n', set()
         for status in self._pr_statistics.review_comment_reaction_statuses:
-            if status['age_seconds'] > (self._days * 86400 + self._hours * 3600):
+            if status['age_seconds'] > (self.days * 86400 + self.hours * 3600):
                 days = int(status['age_seconds']) / 86400
                 hours = (int(status['age_seconds']) - days * 86400) / 3600
                 emails_content += ('{} is waiting for response for {} '
                                    'days and {} hours - comment: {}\n').format(
                     status['last_comment'].user.login, days, hours,
                     status['last_comment'].url)
-                receviers.extend([
-                    status['last_comment'].user.email,
-                    status['contributor'].user.email,
-                    status['reviewer'].user.email
-                ])
-        if not all(receviers):
-            raise Exception('Cannot send email: some emails are missing')
-            # TODO: define appropriate exception
+                missing_email_users = set()
+                for part in ('last_comment', 'contributor', 'reviewer'):
+                    user = status[part].user
+                    if user.email:
+                        receviers.add(user.email)
+                    else:
+                        missing_email_users.add(user.login)
+        if missing_email_users:
+            if self._prompt_missing_emails:
+                login_marks = ' '.join(['@{}'.format(login) for login in missing_email_users])
+                self._pr_statistics.pull_request.create_issue_comment(
+                    '{} your email addresses are missing, please set it up ({})'
+                    .format(login_marks,
+                            'https://help.github.com/articles/verifying-your-email-address/')
+                )
+            else:
+                raise Exception('Cannot send email, email addresses are missing for: {}'
+                                .format(missing_email_users))
+                # TODO: define appropriate exception
         if not receviers:
             return
-        receviers = list(set(receviers))
+        receviers = list(receviers)
         subject = 'PR#{} is waiting for response'.format(self._pr_statistics.number)
         from nudgebot import NudgeBot
         NudgeBot().send_email(receviers, subject, emails_content)
-        return {
-            'receivers': receviers, 'subject': subject, 'body': emails_content
-        }
 
     @property
     def hash(self):

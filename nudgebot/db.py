@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from pymongo import MongoClient
 
 from common import Singleton
@@ -12,36 +10,30 @@ class db(object):  # noqa
         self.client = MongoClient()
         self.db = self.client.data
         # Collections:
-        self.sessions = self.client.db.sessions
         self.records = self.client.db.records
-        self.stats = self.client.db.stats
+        self.pr_stats = self.client.db.pr_stats
+        self.reviewers_pool = self.client.db.reviewers_pool
 
-    def new_session(self):
-        old_session_ids = [session['id'] for session in self.sessions.find()]
-        data = {
-            'id': (max(old_session_ids)+1 if old_session_ids else 0),
-            'start_time': datetime.now()
-        }
-        self.sessions.insert_one(data)
-        return data
-
-    def add_record(self, session_id, cases_checksum, action, action_properties):
+    def add_record(self, cases_properties, cases_checksum, action):
         db().records.insert_one({
-            'session_id': session_id,
-            'case_checksum': cases_checksum,
+            'cases_properties': cases_properties,
+            'cases_checksum': cases_checksum,
             'action': {
                 'checksum': action.hash,
-                'name': action.name,
-                'properties': action_properties
+                'name': action.class_name,
+                'properties': action.properties
             }
         })
 
-    def add_stat(self, session_id, data):
-        data['session_id'] = session_id
-        db().stats.insert_one(data)
+    def update_pr_stats(self, data):
+        stat_key = {key: data[key] for key in ('organization', 'repository', 'number')}
+        stat_exists = bool([s for s in self.pr_stats.find(stat_key)])
+        if stat_exists:
+            self.pr_stats.remove(stat_key)
+        self.pr_stats.insert_one(data)
 
     def clear_db(self):
         # Deleting all the data in the db
         self.records.remove()
-        self.sessions.remove()
-        self.stats.remove()
+        self.pr_stats.remove()
+        self.reviewers_pool.remove()
