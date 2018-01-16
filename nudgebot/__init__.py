@@ -14,7 +14,6 @@ from nudgebot.db import db
 from nudgebot.lib.github.pull_request_statistics import PullRequestStatistics
 from nudgebot.flow import FLOW
 from nudgebot.lib.github import GithubEnv
-from nudgebot.report import Reporter
 
 
 class NudgeBot(object):
@@ -85,15 +84,14 @@ class NudgeBot(object):
                 self.process(pr_stat)
                 db().update_pr_stats(pr_stat.json)
 
-    def send_report(self):
-        if config().config.report.send_report:
-            Reporter().send_report([stat for stat in db().stats.find()])
-
     def process_github_event(self, json_data):
+        if json_data['sender']['login'] == config().credentials.github.username:
+            return  # In order the prevent recursion when the bot perform action and invoke webhook
         repository = [repo for repo in GithubEnv().repos
                       if repo.name == json_data.get('repository', {}).get('name')].pop()
         pull_request_number = json_data.get('pull_request', {}).get('number')
         if pull_request_number:
             pr_stat = PullRequestStatistics(repository.get_pull_request(pull_request_number))
+            repository.reviewers_pool.update_from_pr_stats(pr_stat)
             self.process(pr_stat)
             db().update_pr_stats(pr_stat.json)

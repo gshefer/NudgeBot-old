@@ -8,7 +8,7 @@ from nudgebot.lib.actions import Approve, RequestChanges
 class Case(object):
     """A base class for a case"""
     def __init__(self, not_case=False):
-        self._not_case = not_case
+        self.not_case = not_case
 
     def __setattr__(self, name, value):
         if not hasattr(self, '_properties'):
@@ -24,7 +24,7 @@ class Case(object):
         }
 
     def __repr__(self):
-        return '<Case {}{}>'.format(('not ' if self._not_case else ''), self.name)
+        return '<Case {}{}>'.format(('not ' if self.not_case else ''), self.name)
 
     def load_pr_statistics(self, pr_statistics):
         self._pr_statistics = pr_statistics
@@ -34,7 +34,7 @@ class Case(object):
 
     @property
     def state(self):
-        if self._not_case:
+        if self.not_case:
             return not self.check_state()
         return self.check_state()
 
@@ -43,7 +43,7 @@ class Case(object):
         checksum = md5.new()
         checksum.update(str(self._pr_statistics.number))
         checksum.update(self.__class__.__name__)
-        checksum.update(str(self._not_case))
+        checksum.update(str(self.not_case))
         for str_ in strings:
             checksum.update(str_)
         return checksum.hexdigest()

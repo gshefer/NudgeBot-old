@@ -83,7 +83,7 @@ class PullRequestTitleTag(object):
         return detected_tags
 
     def __init__(self, tag):
-        self._tag = (tag.raw if isinstance(tag, self.__class__)
+        self._tag = (tag.name if isinstance(tag, self.__class__)
                      else tag)
 
     def __eq__(self, other):
@@ -147,12 +147,15 @@ class PullRequest(object):
         return PullRequestTitleTag.fetch(self.title)
 
     @title_tags.setter
-    def title_tags(self, tags):
+    def title_tags(self, title_tags):
         """Setting the title_tags <title_tags> to the pull request title
         """
+        if isinstance(title_tags, basestring):
+            title_tags = [title_tags]
+        title_tags = [PullRequestTitleTag(tag) for tag in title_tags]
         return self._github_obj.edit(
             '{} {}'.format(
-                ''.join([t.raw for t in tags]), re.split(
+                ''.join([t.raw for t in title_tags]), re.split(
                     config().config.github.pull_request_title_tag.pattern, self.title
                     )[-1].strip()
             )

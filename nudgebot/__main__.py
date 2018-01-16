@@ -4,6 +4,7 @@ import github
 
 from nudgebot import NudgeBot
 from config import config
+from nudgebot.website import WebSite
 
 
 if config().config.debug_mode:
@@ -17,7 +18,12 @@ nudge_bot = NudgeBot()
 @app.route('/webhooks', methods=['POST'])
 def webhook_event():
     nudge_bot.process_github_event(json.loads(request.form['payload']))
-    return 'Webhook received'
+    return 'OK'
+
+
+@app.route('/statistics', methods=['GET'])
+def statistics_page():
+    return WebSite().statistics_html
 
 
 if __name__ == '__main__':

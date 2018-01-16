@@ -55,7 +55,8 @@ class PullRequestTitleTagSet(Action):
     run_type = attr.ib(default=Action.run_type)
 
     def action(self):
-        self.title_tags = [PullRequestTitleTag(tag) for tag in self.title_tags]
+        if isinstance(self.title_tags, basestring):
+            self.title_tags = [self.title_tags]
         current_tags = self._pr_statistics.pull_request.title_tags
         new_tags = (self.title_tags if self.override
                     else list(set(self.title_tags + current_tags)))
@@ -85,12 +86,6 @@ class AddReviewer(Action):
     level = attr.ib(default=1)
     run_type = attr.ib(default=Action.run_type)
 
-    @property
-    def properties(self):
-        out = attr.asdict(self)
-        out['reviewer'] = out['reviewer'].login
-        return out
-
     def action(self):
         if not self.reviewer:
             self.reviewer = self._pr_statistics.repo.reviewers_pool.pull_reviewer(
@@ -106,12 +101,6 @@ class AddReviewer(Action):
 class RemoveReviewer(Action):
     reviewer = attr.ib()
     run_type = attr.ib(default=Action.run_type)
-
-    @property
-    def properties(self):
-        out = attr.asdict(self)
-        out['reviewer'] = out['reviewer'].login
-        return out
 
     def action(self):
         self._pr_statistics.pull_request.remove_reviewers([self.reviewer])
