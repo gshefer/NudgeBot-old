@@ -1,42 +1,39 @@
 import md5
 import re
+import logging
 from datetime import datetime
 
 from nudgebot.lib.actions import Approve, RequestChanges
+from nudgebot.lib import FlowObject
 
 
-class Case(object):
+logging.basicConfig()
+logger = logging.getLogger('CasesLogger')
+logger.setLevel(logging.INFO)
+
+
+class Case(FlowObject):
     """A base class for a case"""
     def __init__(self, not_case=False):
         self.not_case = not_case
 
-    def __setattr__(self, name, value):
-        if not hasattr(self, '_properties'):
-            super(Case, self).__setattr__('_properties', {})
-        if not name.startswith('_'):
-            self._properties[name] = str(value)
-        return super(Case, self).__setattr__(name, value)
-
-    @property
-    def properties(self):
-        return {
-            self.__class__.__name__: {name: getattr(self, name) for name in self._properties}
-        }
-
     def __repr__(self):
-        return '<Case {}{}>'.format(('not ' if self.not_case else ''), self.name)
-
-    def load_pr_statistics(self, pr_statistics):
-        self._pr_statistics = pr_statistics
+        return '<Case {}{} {}>'.format(
+            ('not ' if self.not_case else ''), self.__class__.__name__,
+            ' '.join(['{}={};'.format(key, val) for key, val in self._properties.items()])
+        )
 
     def check_state(self):
         raise NotImplementedError()
 
     @property
     def state(self):
+        logger.info('Evaluating state of case: {}'.format(self))
+        state = self.check_state()
         if self.not_case:
-            return not self.check_state()
-        return self.check_state()
+            state = not state
+        logger.info('Case state is {}'.format(state))
+        return state
 
     def _md5(self, *args):
         strings = [str(arg) for arg in args]
@@ -47,10 +44,6 @@ class Case(object):
         for str_ in strings:
             checksum.update(str_)
         return checksum.hexdigest()
-
-    @property
-    def hash(self):
-        raise NotImplementedError()
 
 
 class PullRequestHasTitleTag(Case):

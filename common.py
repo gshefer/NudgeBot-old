@@ -1,5 +1,7 @@
 from enum import Enum
 from datetime import datetime
+from dateutil import tz
+import dateparser
 
 
 class ExtendedEnum(Enum):
@@ -68,3 +70,16 @@ class Age(object):
     @property
     def pretty(self):
         return '{} days and {} hours'.format(self.days, self.hours)
+
+
+def as_local_time(datetime_obj, tzinfo=None, raise_if_native_time=True):
+    """Converting the datetime object to local time
+    if raise_if_native_time: Raises ValueError: astimezone() cannot be applied to
+                             a naive datetime  if provided datetime_obj with tzinfo=None
+    """
+    if isinstance(datetime_obj, basestring):
+        datetime_obj = dateparser.parse(datetime_obj)
+    if not datetime_obj.tzinfo and not raise_if_native_time:
+        return datetime_obj
+    local_dt = datetime_obj.astimezone(tz.tzlocal())
+    return local_dt.replace(tzinfo=tzinfo)

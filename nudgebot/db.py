@@ -1,10 +1,16 @@
 import pprint
+import logging
 from datetime import datetime
 
 from pymongo import MongoClient
 
 from common import Singleton
 from bson import _ENCODERS as bson_encoders
+
+
+logging.basicConfig()
+logger = logging.getLogger('DatabaseLogger')
+logger.setLevel(logging.INFO)
 
 
 class db(object):  # noqa
@@ -18,6 +24,16 @@ class db(object):  # noqa
         self.records = self.client.db.records
         self.pr_stats = self.client.db.pr_stats
         self.reviewers_pool = self.client.db.reviewers_pool
+        self.metadata = self.client.db.metadata
+        if not self.metadata.find_one():
+            self.metadata.insert_one({
+                'init_time': None,
+                'delivered_events': []
+            })
+
+    def close(self):
+        self.metadata.close()
+        self.client.close()
 
     @classmethod
     def bson_encode(cls, node):
@@ -36,6 +52,20 @@ class db(object):  # noqa
         else:
             result = str(node)
         return result
+
+    @property
+    def delivered_events(self):
+        return self.metadata.find_one()['delivered_events']
+
+    def add_delivered_event(self, event_id):
+        self.metadata.update_one({}, {'$addToSet': {'delivered_events': event_id}})
+
+    def set_initialization_time(self):
+        self.metadata.update_one({}, {'$set': {'init_time': datetime.now()}})
+
+    @property
+    def initialization_time(self):
+        return self.metadata.find_one()['init_time']
 
     def add_record(self, cases_properties, cases_checksum, action):
         db().records.insert_one(self.bson_encode({
@@ -73,6 +103,9 @@ class db(object):  # noqa
 
     def clear_db(self):
         # Deleting all the data in the db
+        logger.info('Clearing DB!')
         self.records.remove()
         self.pr_stats.remove()
         self.reviewers_pool.remove()
+        self.metadata.remove()
+        logger.info('DB clean.')

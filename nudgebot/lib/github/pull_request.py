@@ -187,8 +187,8 @@ class PullRequest(object):
         # Including both existing reviewers and reviewers from reviewer request
         # Including reviewers that not in the pool
         reviewers = []
-        for review in self.reviews:
-            reviewers.append(ReviewerUser(review.user.login))
+        for review_comment in self.review_comment_threads:
+            reviewers.append(ReviewerUser(review_comment.first_comment.user.login))
         for review_request in self.reviewer_requests:
             reviewer = ReviewerUser(review_request.login)
             if reviewer not in reviewers:

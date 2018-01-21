@@ -15,7 +15,6 @@ testing_mode: false
 debug_mode: false
 maintainers: # Used for recieve emails about failures
   - <maintainer_email>
-report:
-  send_report: true
-  receivers:
-    - <reciever_1>
+events_proxy:
+  use: true
+  check_timeout_seconds: 60

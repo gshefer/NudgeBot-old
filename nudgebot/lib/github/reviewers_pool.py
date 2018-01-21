@@ -1,14 +1,21 @@
+import logging
+
 from cached_property import cached_property
 
 from nudgebot.lib.github.users import ReviewerUser
 from nudgebot.db import db
 
 
+logging.basicConfig()
+logger = logging.getLogger('ReviewersPoolLogger')
+logger.setLevel(logging.INFO)
+
+
 class ReviewersPool(object):
 
     def __init__(self, repository):
         self._repository = repository
-        self._pool = {}
+        self.reload_db()
 
     @cached_property
     def repository(self):
@@ -38,6 +45,7 @@ class ReviewersPool(object):
         return self._pool[reviewer]['level']
 
     def initialize(self):
+        logger.info('Initializing Reviewers pool of repository "{}"...'.format(self.repository.name))
         repo_pulls = self._repository.get_pull_requests()
         for level, logins in enumerate(self._repository.config.reviewers):
             level += 1
@@ -55,9 +63,20 @@ class ReviewersPool(object):
         self.update_db()
 
     def update_db(self):
-        db().reviewers_pool.remove()
         # We are copying the dict in order to prevent the addition of '_id'
-        db().reviewers_pool.insert_one(self._pool.copy())
+        if not db().reviewers_pool.find_one():
+            db().reviewers_pool.insert_one(self._pool.copy())
+            return
+        db().reviewers_pool.update({}, self._pool.copy())
+
+    def reload_db(self):
+        pool = db().reviewers_pool.find_one({})
+        if pool:
+            del pool['_id']
+            self._pool = pool
+        else:
+            self._pool = {}
+            self.update_db()
 
     def update_from_pr_stats(self, pr_stats):
         """Updating the pool from according to the pull request statistics"""

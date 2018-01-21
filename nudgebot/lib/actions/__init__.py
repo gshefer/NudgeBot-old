@@ -1,10 +1,16 @@
 import md5
-import attr
+import logging
 
 from config import config
 from common import Age
 from nudgebot.lib.github.users import BotUser
 from nudgebot.lib.github.pull_request import PullRequestTitleTag
+from nudgebot.lib import FlowObject
+
+
+logging.basicConfig()
+logger = logging.getLogger('ActionsLogger')
+logger.setLevel(logging.INFO)
 
 
 class RUN_TYPES:
@@ -12,23 +18,15 @@ class RUN_TYPES:
     ALWAYS = 'Always'
 
 
-class Action(object):
+class Action(FlowObject):
     """A base class for an action"""
-    run_type = RUN_TYPES.ONCE
     _github_obj = BotUser()
 
-    def load_pr_statistics(self, pr_statistics):
-        self._pr_statistics = pr_statistics
-
-    @property
-    def class_name(self):
-        return self.__class__.__name__
-
-    @property
-    def properties(self):
-        return attr.asdict(self)
+    def __init__(self, *args, **kwargs):
+        self.run_type = kwargs.get('run_type', RUN_TYPES.ONCE)
 
     def run(self):
+        logger.info('Running action: {}'.format(self))
         if config().config.testing_mode:
             return
         return self.action()
@@ -43,16 +41,12 @@ class Action(object):
             checksum.update(str(str_))
         return checksum.hexdigest()
 
-    @property
-    def hash(self):
-        raise NotImplementedError()
 
-
-@attr.s
 class PullRequestTitleTagSet(Action):
-    title_tags = attr.ib(default=attr.Factory(list))
-    override = attr.ib(default=False)
-    run_type = attr.ib(default=Action.run_type)
+    def __init__(self, title_tags, override=False, **kwargs):
+        self.title_tags = title_tags
+        self.override = override
+        Action.__init__(self, **kwargs)
 
     def action(self):
         if isinstance(self.title_tags, basestring):
@@ -67,10 +61,10 @@ class PullRequestTitleTagSet(Action):
         return self._md5('+', *[PullRequestTitleTag(tag).raw for tag in self.title_tags])
 
 
-@attr.s
 class PullRequestTitleTagRemove(Action):
-    title_tags = attr.ib(default=attr.Factory(list))
-    run_type = attr.ib(default=Action.run_type)
+    def __init__(self, title_tags, **kwargs):
+        self.title_tags = title_tags
+        Action.__init__(self, **kwargs)
 
     def action(self):
         self._pr_statistics.pull_request.remove_title_tags(*self.title_tags)
@@ -80,11 +74,11 @@ class PullRequestTitleTagRemove(Action):
         return self._md5('-', *[PullRequestTitleTag(tag).raw for tag in self.title_tags])
 
 
-@attr.s
 class AddReviewer(Action):
-    reviewer = attr.ib(default=None)
-    level = attr.ib(default=1)
-    run_type = attr.ib(default=Action.run_type)
+    def __init__(self, reviewer=None, level=1, **kwargs):
+        self.reviewer = reviewer
+        self.level = level
+        Action.__init__(self, **kwargs)
 
     def action(self):
         if not self.reviewer:
@@ -97,10 +91,10 @@ class AddReviewer(Action):
         return self._md5('+', self.reviewer)
 
 
-@attr.s
 class RemoveReviewer(Action):
-    reviewer = attr.ib()
-    run_type = attr.ib(default=Action.run_type)
+    def __init__(self, reviewer, **kwargs):
+        self.reviewer = reviewer
+        Action.__init__(self, **kwargs)
 
     def action(self):
         self._pr_statistics.pull_request.remove_reviewers([self.reviewer])
@@ -110,10 +104,10 @@ class RemoveReviewer(Action):
         return self._md5('-', self.reviewer)
 
 
-@attr.s
 class CreateIssueComment(Action):
-    body = attr.ib()
-    run_type = attr.ib(default=Action.run_type)
+    def __init__(self, body, **kwargs):
+        self.body = body
+        Action.__init__(self, **kwargs)
 
     def action(self):
         self._pr_statistics.pull_request.create_issue_comment(self.body)
@@ -123,10 +117,12 @@ class CreateIssueComment(Action):
         return self._md5(self.body)
 
 
-@attr.s
 class _ReviewStateActionBase(Action):
     STATE = 'PENDING'
-    run_type = attr.ib(default=Action.run_type)
+
+    def __init__(self, body, **kwargs):
+        self.body = body
+        Action.__init__(self, **kwargs)
 
     @property
     def event(self):
@@ -142,26 +138,22 @@ class _ReviewStateActionBase(Action):
         return self._md5('+', self.event, self.body)
 
 
-@attr.s
 class RequestChanges(_ReviewStateActionBase):
     EVENT = 'REQUEST_CHANGES'
     STATE = 'CHANGES_REQUESTED'
-    body = attr.ib(default=None)
 
 
-@attr.s
 class Approve(_ReviewStateActionBase):
     EVENT = 'APPROVE'
     STATE = 'APPROVED'
-    body = attr.ib(default=None)
 
 
-@attr.s
 class CreateReviewComment(Action):
-    body = attr.ib()
-    path = attr.ib(default=None)
-    position = attr.ib(default=None)
-    run_type = attr.ib(default=Action.run_type)
+    def __init__(self, body, path=None, position=None, **kwargs):
+        self.body = body
+        self.path = path
+        self.position = position
+        Action.__init__(self, **kwargs)
 
     def action(self):
         commit = list(self._pr_statistics.commits)[-1]
@@ -173,10 +165,10 @@ class CreateReviewComment(Action):
         return self._md5('+', self.body, self.path, self.position)
 
 
-@attr.s
 class EditDescription(Action):
-    description = attr.ib()
-    run_type = attr.ib(default=Action.run_type)
+    def __init__(self, body, **kwargs):
+        self.body = body
+        Action.__init__(self, **kwargs)
 
     def action(self):
         self._pr_statistics.pull_request.edit(body=self._description)
@@ -186,12 +178,12 @@ class EditDescription(Action):
         return self._md5(self.description)
 
 
-@attr.s
 class SendEmailToUsers(Action):
-    receivers = attr.ib()
-    subject = attr.ib()
-    body = attr.ib()
-    run_type = attr.ib(default=Action.run_type)
+    def __init__(self, receivers, subject, body, **kwargs):
+        self.receivers = receivers
+        self.subject = subject
+        self.body = body
+        Action.__init__(self, **kwargs)
 
     def action(self):
         from nudgebot import NudgeBot
@@ -207,9 +199,7 @@ class SendEmailToUsers(Action):
         )
 
 
-@attr.s
 class ReportForInactivity(Action):
-    run_type = attr.ib(default=Action.run_type)
 
     def action(self):
         last_update = Age(self._pr_statistics.last_update)
@@ -223,12 +213,12 @@ class ReportForInactivity(Action):
         return self._md5(self._pr_statistics.last_update)
 
 
-@attr.s
 class AskForReviewCommentReactions(Action):
-    days = attr.ib()
-    hours = attr.ib()
-    prompt_missing_emails = attr.ib(default=False)
-    run_type = attr.ib(default=Action.run_type)
+    def __init__(self, days, hours, prompt_missing_emails=False, **kwargs):
+        self.days = days
+        self.hours = hours
+        self.prompt_missing_emails = prompt_missing_emails
+        Action.__init__(self, **kwargs)
 
     def action(self):
         # TODO: convert to age
