@@ -33,10 +33,10 @@ def parse_command(namespace):
             ans = raw_input('Are you sure? this operation cannot be undone (n/y): ')
             while ans not in ('y', 'n'):
                 ans = raw_input('Please answer "y" or "n": ')
-                if ans.lower() in ('n', 'no'):
-                    return
-                elif ans.lower() in ('y', 'yes'):
-                    return db().clear_db()
+            if ans.lower() in ('n', 'no'):
+                return
+            elif ans.lower() in ('y', 'yes'):
+                return db().clear_db()
 
 
 if __name__ == '__main__':

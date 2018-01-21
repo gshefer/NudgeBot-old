@@ -21,6 +21,7 @@ class EventsProxy(threading.Thread):
 
     def __init__(self, *args, **kwargs):
         threading.Thread.__init__(self, *args, **kwargs)
+        self.daemon = True
         self._last_check = None
 
     def run(self):
