@@ -10,6 +10,7 @@ from config import config
 from nudgebot.db import db
 from nudgebot import NudgeBot
 from nudgebot.lib.github.events_proxy import EventsProxy
+from nudgebot.lib.github import GithubEnv
 
 logging.basicConfig()
 logger = logging.getLogger('ServerLogger')
@@ -37,9 +38,9 @@ def statistics_page():
     stats = [stat for stat in db().pr_stats.find()]
     # Temp wrapper for aging - TODO: do this internally in the stat class!!!
     for stat in stats:
-        for key in ('last_update', 'last_code_update', 'age'):
+        for key in ('last_update', 'age'):
             stat[key] = Age(stat[key])
-    html = template.render(stats=stats)
+    html = template.render(stats=stats, repos=GithubEnv().repos)
     return html
 
 

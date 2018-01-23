@@ -67,14 +67,6 @@ class PullRequestStatistics(object):
         return self._pull_request.last_update
 
     @cached_property
-    def last_update_age(self):
-        return self._pull_request.last_update_age
-
-    @cached_property
-    def last_code_update_age(self):
-        return self._pull_request.last_code_update_age
-
-    @cached_property
     def time_since_last_update(self):
         return datetime.now() - self.last_update
 
@@ -105,7 +97,7 @@ class PullRequestStatistics(object):
     def last_review_comment(self):
         review_comments = self.review_comments
         if review_comments:
-            return max(review_comments, key=lambda item: item.updated_at)
+            return max(review_comments, key=lambda item: (item.updated_at or item.created_at))
 
     @cached_property
     def review_comment_reaction_statuses(self):
@@ -127,6 +119,10 @@ class PullRequestStatistics(object):
                     })
         return statuses
 
+    @cached_property
+    def total_review_comments_count(self):
+        return len(self.pull_request.review_comment_threads)
+
     @property
     def json(self):
         """Get the object data as dictionary"""
@@ -144,8 +140,7 @@ class PullRequestStatistics(object):
             'title_tags': [tt.name for tt in self.title_tags],
             'reviewers': [reviewer.login for reviewer in self.reviewers],
             'review_states_by_user': {user.login: state for user, state in self.review_states_by_user.items()},
-            'last_review_comment': {'login': '', 'body': '', 'updated_at': ''},
-            'last_code_update': self.last_code_update
+            'last_review_comment': {'login': '', 'body': '', 'updated_at': ''}
         }
         if last_review_comment:
             data['last_review_comment'] = {

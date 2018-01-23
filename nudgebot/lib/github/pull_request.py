@@ -8,7 +8,7 @@ import requests
 
 from .users import User, ContributorUser, ReviewerUser
 from config import config
-from common import Age
+from common import Age, as_local_time
 
 
 class ReviewCommentThread(object):
@@ -304,12 +304,8 @@ class PullRequest(object):
 
     @property
     def last_update(self):
-        return self._github_obj.updated_at
-
-    @property
-    def last_update_age(self):
-        return Age(self.last_update)
-
-    @property
-    def last_code_update_age(self):
-        return Age(self.last_code_update)
+        last_update = as_local_time(self._github_obj.updated_at, raise_if_native_time=False)
+        last_code_update = as_local_time(self.last_code_update, raise_if_native_time=False)
+        if last_update > last_code_update:
+            return last_update
+        return last_code_update

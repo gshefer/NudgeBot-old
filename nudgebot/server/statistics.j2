@@ -2,12 +2,38 @@
 <html lang="en">
 <head>
     <title>Pull requests statistics</title>
+  	<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css">
   	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/css/patternfly.min.css">
   	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/patternfly/3.24.0/css/patternfly-additions.min.css">
 </head>
-<body>
+<body style="background: rgb(252,252,252);">
+	<h1>Reviewers</h1>
+	{% for repo in repos %}
+	<h3>{{ repo.name }} Reviewers</h3>
+	<div style="width: 40%; border: 1px solid rgb(222,222,222); padding: 4px;">
+	<table class="table dataTable display compact row-border hover" id="{{ repo.name }}_reviewers_pool">
+		<thead>
+			<tr>
+		    	<th><a href="#">Login</a></th>
+		    	<th><a href="#">Level</a></th>
+		    	<th><a href="#">Number of PRs</a></th>
+		  	</tr>
+	  	</thead>
+	  	<tbody>
+	  		{% for login, info in repo.reviewers_pool.pool.items() %}
+	    	<tr>
+				<td width="60%">{{ login }}</td>
+				<td align="center" width="20%">{{ info['level'] }}</td>
+				<td align="center" width="20%">{{ info['pull_requests']|length }}</td>
+			</tr>
+			{% endfor %}
+	    </tbody>
+    </table>
+    {% endfor %}
+    </div>
 	<h1>Pull requests statistics</h1>
-	<table  class="table table-striped table-bordered table-hover" id="pr_stats">
+	<div style="border: 1px solid rgb(222,222,222); padding: 3px;">
+	<table  class="table dataTable display compact row-border hover" id="pr_stats">
 		<thead>
 			<tr>
 		    	<th><a href="#">Organization</a></th>
@@ -18,7 +44,7 @@
 		    	<th><a href="#">Tags</a></th>
 		    	<th><a href="#">Age</a></th>
 		    	<th><a href="#">Last update</a></th>
-		    	<th><a href="#">Last code update</a></th>
+		    	<th><a href="#">Last Comment</a></th>
 		    	<th><a href="#">Reviewers</a></th>
 		    	<th><a href="#">Review States by User</a></th>
 		  	</tr>
@@ -34,7 +60,7 @@
 				<td>{{ ', '.join(stat['title_tags']) }}</td>
 				<td>{{ stat['age']['days'] }} days and {{ stat['age']['hours'] }} hours</td>
 				<td>{{ stat['last_update']['days'] }} days and {{ stat['last_update']['hours'] }} hours ago</td>
-				<td>{{ stat['last_code_update']['days'] }} days and {{ stat['last_code_update']['hours'] }} hours ago</td>
+				<td>{{ stat['last_review_comment']['login'] }}</td>
 				<td>{{ ', '.join(stat['reviewers']) }}</td>
 				<td>
 				{% for user, state in stat['review_states_by_user'].items() %}
@@ -45,17 +71,25 @@
 			{% endfor %}
 	    </tbody>
     </table>
+    </div>
     
 	<!-- jQuery library -->
 	<!-- Latest compiled JavaScript -->
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-	<script src="http://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.9.1/jquery.tablesorter.min.js"></script>
+	<script src="//cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
 	<script>
 	$(document).ready(function() 
     { 
-        $("#pr_stats").tablesorter(); 
+        $("#pr_stats").DataTable(); 
+    } 
+	);
+	{% for repo in repos %}
+	$(document).ready(function() 
+    { 
+        $("#{{ repo.name }}_reviewers_pool").DataTable();
     } 
 	); 
+	{% endfor %}
 	</script>
 </body>
 </html>
