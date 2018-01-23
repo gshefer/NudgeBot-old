@@ -49,7 +49,7 @@ class Singleton(type):
 class Age(object):
 
     def __init__(self, datetime_obj):
-        self._datetime_obj = datetime_obj.replace(tzinfo=None)
+        self._datetime_obj = as_local_time(datetime_obj, raise_if_native_time=False)
 
     @property
     def total_seconds(self):
