@@ -46,6 +46,7 @@
 		    	<th><a href="#">Last update</a></th>
 		    	<th><a href="#">Last Comment</a></th>
 		    	<th><a href="#">Reviewers</a></th>
+		    	<th><a href="#">Total Comments</a></th>
 		    	<th><a href="#">Review States by User</a></th>
 		  	</tr>
 	  	</thead>
@@ -62,6 +63,7 @@
 				<td>{{ stat['last_update']['days'] }} days and {{ stat['last_update']['hours'] }} hours ago</td>
 				<td>{{ stat['last_review_comment']['login'] }}</td>
 				<td>{{ ', '.join(stat['reviewers']) }}</td>
+				<td>{{ stat['total_review_comments'] }}</td>
 				<td>
 				{% for user, state in stat['review_states_by_user'].items() %}
 					{{ '{}: {}; '.format(user, state) }}
