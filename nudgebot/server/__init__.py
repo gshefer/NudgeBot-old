@@ -5,7 +5,7 @@ import json
 
 from jinja2 import Template
 
-from common import Singleton
+from common import Singleton, Age
 from config import config
 from nudgebot.db import db
 from nudgebot import NudgeBot
@@ -34,7 +34,12 @@ def webhook_event():
 def statistics_page():
     with open(STATISTICS_TEMPLATE_PATH, 'r') as f:
         template = Template(f.read().encode('UTF-8'))
-    html = template.render(stats=[stat for stat in db().pr_stats.find()])
+    stats = [stat for stat in db().pr_stats.find()]
+    # Temp wrapper for aging - TODO: do this internally in the stat class!!!
+    for stat in stats:
+        for key in ('last_update', 'last_code_update', 'age'):
+            stat[key] = Age(stat[key])
+    html = template.render(stats=stats)
     return html
 
 

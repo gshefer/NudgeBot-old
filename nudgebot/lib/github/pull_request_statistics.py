@@ -28,7 +28,7 @@ class PullRequestStatistics(object):
 
     @cached_property
     def age(self):
-        return self._pull_request.age
+        return self._pull_request.created_at
 
     @cached_property
     def number(self):
@@ -136,16 +136,16 @@ class PullRequestStatistics(object):
             'title': self.title,
             'owner': self.owner.login,
             'description': self.description,
-            'age': self.age.json,
+            'age': self.age,
             'organization': getattr(self.org, 'login', self.org.name),
             'repository': self.repo.name,
-            'last_update': self.last_update_age.json,
+            'last_update': self.last_update,
             'test_results': self.test_results,
             'title_tags': [tt.name for tt in self.title_tags],
             'reviewers': [reviewer.login for reviewer in self.reviewers],
             'review_states_by_user': {user.login: state for user, state in self.review_states_by_user.items()},
             'last_review_comment': {'login': '', 'body': '', 'updated_at': ''},
-            'last_code_update': self.last_code_update_age.json
+            'last_code_update': self.last_code_update
         }
         if last_review_comment:
             data['last_review_comment'] = {
