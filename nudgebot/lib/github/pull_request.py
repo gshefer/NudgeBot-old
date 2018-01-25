@@ -5,6 +5,7 @@ import re
 from cached_property import cached_property
 import dateparser
 import requests
+import github
 
 from .users import User, ContributorUser, ReviewerUser
 from config import config
@@ -121,6 +122,23 @@ class PullRequest(object):
 
     def __getattr__(self, name):
         return getattr(self._github_obj, name)
+
+    def get_reviewer_requests(self):
+        """
+        A workaround for the native pygithub functions due to this issue:
+        https://github.com/PyGithub/PyGithub/issues/687
+        TODO: Remove this function once issue solved
+        """
+        headers, data = self._requester.requestJsonAndCheck(
+            "GET",
+            self._github_obj.url + "/requested_reviewers",
+            headers={'Accept': 'application/vnd.github.black-cat-preview+json'}
+        )
+        return [
+            github.PullRequestReviewerRequest.PullRequestReviewerRequest(
+                self._github_obj._requester, headers, user_data, completed=False)
+            for user_data in data['users']
+        ]
 
     @property
     def description(self):
