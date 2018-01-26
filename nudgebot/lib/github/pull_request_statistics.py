@@ -121,6 +121,10 @@ class PullRequestStatistics(object):
 
     @cached_property
     def total_review_comments(self):
+        return len(self.pull_request.review_comments)
+
+    @cached_property
+    def total_review_comment_threads(self):
         return len(self.pull_request.review_comment_threads)
 
     @property
@@ -141,6 +145,7 @@ class PullRequestStatistics(object):
             'reviewers': [reviewer.login for reviewer in self.reviewers],
             'review_states_by_user': {user.login: state for user, state in self.review_states_by_user.items()},
             'total_review_comments': self.total_review_comments,
+            'total_review_comment_threads': self.total_review_comment_threads,
             'last_review_comment': {'login': '', 'body': '', 'updated_at': ''}
         }
         if last_review_comment:

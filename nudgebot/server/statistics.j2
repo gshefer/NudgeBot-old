@@ -46,7 +46,8 @@
 		    	<th>Last update</a></th>
 		    	<th>Last Comment</a></th>
 		    	<th>Reviewers</a></th>
-		    	<th>Total Comments</a></th>
+		    	<th>Total Review Comments</a></th>
+		    	<th>Total Review Comment Threads</a></th>
 		    	<th>Review States by User</a></th>
 		  	</tr>
 	  	</thead>
@@ -64,6 +65,7 @@
 				<td>{{ stat['last_review_comment']['login'] }}</td>
 				<td>{{ ', '.join(stat['reviewers']) }}</td>
 				<td>{{ stat['total_review_comments'] }}</td>
+				<td>{{ stat['total_review_comment_threads'] }}</td>
 				<td>
 				{% for user, state in stat['review_states_by_user'].items() %}
 					{{ '{}: {}; '.format(user, state) }}
