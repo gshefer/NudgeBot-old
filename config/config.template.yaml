@@ -15,6 +15,9 @@ testing_mode: false
 debug_mode: false
 maintainers: # Used for recieve emails about failures
   - <maintainer_email>
-events_proxy:
-  use: true
+events_handler:
+  use_github_events_proxy: true
   check_timeout_seconds: 60
+reports:
+  receivers:
+    - <email>

@@ -27,9 +27,10 @@ class NudgeBot(object):
     __metaclass__ = Singleton
 
     def __init__(self):
+        self.smtp = smtplib.SMTP('localhost')
         self._email_addr = config().credentials.email.address
 
-    def send_email(self, receivers, subject, body, attachments=None):
+    def send_email(self, receivers, subject, body, attachments=None, text_format='plain'):
         logger.info('Sending Email to {}; subject="{}"'.format(receivers, subject))
         """Sending the message <body> to the <recievers>"""
         if isinstance(receivers, basestring):
@@ -40,7 +41,7 @@ class NudgeBot(object):
         msg['Date'] = formatdate(localtime=True)
         msg['Subject'] = subject
 
-        msg.attach(MIMEText(body))
+        msg.attach(MIMEText(body, text_format))
         if attachments:
             for attachment in attachments:
                 with open(attachment, "rb") as attachment_file:
@@ -51,8 +52,7 @@ class NudgeBot(object):
                                     .format(attachment))
                     msg.attach(part)
 
-        smtpObj = smtplib.SMTP('localhost')
-        smtpObj.sendmail(self._email_addr, receivers, msg.as_string())
+        self.smtp.sendmail(self._email_addr, receivers, msg.as_string())
 
     def _process_flow(self, stat_collection, tree, cases_properties=None, cases_checksum=None):
         if not cases_checksum:

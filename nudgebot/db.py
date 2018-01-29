@@ -22,13 +22,14 @@ class db(object):  # noqa
         self.db = self.client.data
         # Collections:
         self.records = self.client.db.records
+        self.sent_reports = self.client.db.sent_reports
         self.pr_stats = self.client.db.pr_stats
         self.reviewers_pool = self.client.db.reviewers_pool
         self.metadata = self.client.db.metadata
         if not self.metadata.find_one():
             self.metadata.insert_one({
                 'init_time': None,
-                'delivered_events': []
+                'delivered_github_events': []
             })
 
     def close(self):
@@ -53,12 +54,19 @@ class db(object):  # noqa
             result = str(node)
         return result
 
-    @property
-    def delivered_events(self):
-        return self.metadata.find_one()['delivered_events']
+    def get_reviewers_pool(self):
+        return self.reviewers_pool.find_one({}, {'_id': False})
 
-    def add_delivered_event(self, event_id):
-        self.metadata.update_one({}, {'$addToSet': {'delivered_events': event_id}})
+    @property
+    def pull_request_statistics(self):
+        return [prs for prs in self.pr_stats.find({}, {'_id': False})]
+
+    @property
+    def delivered_github_events(self):
+        return self.metadata.find_one()['delivered_github_events']
+
+    def add_delivered_github_event(self, event_id):
+        self.metadata.update_one({}, {'$addToSet': {'delivered_github_events': event_id}})
 
     def set_initialization_time(self):
         self.metadata.update_one({}, {'$set': {'init_time': datetime.now()}})
@@ -105,6 +113,7 @@ class db(object):  # noqa
         # Deleting all the data in the db
         logger.info('Clearing DB!')
         self.records.remove()
+        self.sent_reports.remove()
         self.pr_stats.remove()
         self.reviewers_pool.remove()
         self.metadata.remove()

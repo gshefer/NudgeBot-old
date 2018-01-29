@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+		table {
+		    font-family: arial, sans-serif;
+		    border-collapse: collapse;
+		    width: 100%;
+		}
+		
+		td, th {
+		    border: 1px solid #dddddd;
+		    text-align: left;
+		    padding: 8px;
+		}
+		
+		tr:nth-child(even) {
+		    background-color: #dddddd;
+		}
+		p {
+			margin: 1px;
+		}
+		</style>
+	</head>
+	<body>
+		<h1>NudgeBot daily report</h1>
+		<div>
+			<h3>Pull request statistics:</h3>
+			    <h4>The following pull requests have more than 25 comments:</h4>
+			        {% for stat in data['stats']|sort(attribute='total_review_comments', reverse=True) -%}
+			        {% if stat['total_review_comments'] > 25 -%}
+			        	<p style="padding-left: 30px"><a href="https://github.com/{{ stat['organization'] }}/{{ stat['repository'] }}/pull/{{ stat['number'] }}">#{{ stat['number'] }}</a> - {{ stat['total_review_comments'] }} comments.
+			        	 &nbsp;(owner: {{ stat['owner'] }})</p>
+			        {% endif -%}
+			        {% endfor -%}
+			    {% for i in (0, 1) -%}
+			    <h4>The following pull requests have {{ (10, 1)[i] }}-{{ (25, 10)[i] }} comments:</h4>
+			        {% for stat in data['stats']|sort(attribute='total_review_comments', reverse=True) -%}
+			        {% if stat['total_review_comments'] <= (25, 10)[i] and stat['total_review_comments'] >= (10, 1)[i] -%}
+			        <p style="padding-left: 30px"><a href="https://github.com/{{ stat['organization'] }}/{{ stat['repository'] }}/pull/{{ stat['number'] }}">#{{ stat['number'] }}</a> - {{ stat['total_review_comments'] }} comments.
+			        &nbsp;(owner: {{ stat['owner'] }})</p>
+			        {% endif -%}
+			        {% endfor -%}
+			    {% endfor -%}
+		</div>
+		<div>
+			<h2>Reviewers:</h2>
+				<table>
+				  <tr>
+				    <th>Reviewer login</th>
+				    <th>Number of pull requests</th>
+				  </tr>
+				  {% for login, info in data['reviewers_pool_items'] -%}
+				  <tr>
+				    <td>{{ login }}</td>
+				    <td>{{ info['pull_requests']|length }}</td>
+				  </tr>
+			      {% endfor -%}
+				</table>
+		</div>
+		<p>For more details, visit statistics page: <a href="{{ data['stat_url'] }}">Statistics page</a></p>
+	</body>
+</html>
