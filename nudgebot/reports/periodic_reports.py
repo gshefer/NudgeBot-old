@@ -9,10 +9,11 @@ from nudgebot.globals import PUBLIC_IP, SERVER_PORT
 
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), 'templates')
+DAILY_REPORT_TIME = [int(t) for t in config().config.reports.daily.split(':')]
 
 
 class DailyStatusReport(Report):
-    CRONTAB = crontab(hour=17, minute=5)
+    CRONTAB = crontab(hour=DAILY_REPORT_TIME[0], minute=DAILY_REPORT_TIME[1])
     SUBJECT = '{{ data["stats"][0]["repository"] }} daily report'
     TEMPLATE = os.path.join(TEMPLATES_DIR, 'daily_status_report.j2')
     TEXT_FORMAT = 'html'
