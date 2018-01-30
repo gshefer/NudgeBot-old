@@ -26,6 +26,28 @@
 		<h1>NudgeBot daily report</h1>
 		<div>
 			<h3>Pull request statistics:</h3>
+				<table>
+					<thead>
+						<tr>
+							<th>Tag</th>
+							<th>Count</th>
+							<th>Pull requests</th>
+						</tr>
+					</thead>
+					<tbody>
+					{% for tag in ('RFR', 'WIPTEST', 'WIP') -%}
+						<tr>
+							<td>{{ tag }}</td>
+							<td>{{ data['stats_by_tag'][tag]|length }}</td>
+							<td>
+								{% for stat in data['stats_by_tag'][tag] -%}
+								<a href="https://github.com/{{ stat['organization'] }}/{{ stat['repository'] }}/pull/{{ stat['number'] }}">#{{ stat['number'] }}</a>
+								{% endfor -%}
+							</td>
+						</tr>
+					{% endfor -%}
+					</tbody>
+				</table>
 			    <h4>The following pull requests have more than 25 comments:</h4>
 			        {% for stat in data['stats']|sort(attribute='total_review_comments', reverse=True) -%}
 			        {% if stat['total_review_comments'] > 25 -%}
@@ -33,15 +55,13 @@
 			        	 &nbsp;(owner: {{ stat['owner'] }})</p>
 			        {% endif -%}
 			        {% endfor -%}
-			    {% for i in (0, 1) -%}
-			    <h4>The following pull requests have {{ (10, 1)[i] }}-{{ (25, 10)[i] }} comments:</h4>
+			    <h4>The following pull requests have 10-25 comments:</h4>
 			        {% for stat in data['stats']|sort(attribute='total_review_comments', reverse=True) -%}
-			        {% if stat['total_review_comments'] <= (25, 10)[i] and stat['total_review_comments'] >= (10, 1)[i] -%}
+			        {% if stat['total_review_comments'] <= 25 and stat['total_review_comments'] >= 10 -%}
 			        <p style="padding-left: 30px"><a href="https://github.com/{{ stat['organization'] }}/{{ stat['repository'] }}/pull/{{ stat['number'] }}">#{{ stat['number'] }}</a> - {{ stat['total_review_comments'] }} comments.
 			        &nbsp;(owner: {{ stat['owner'] }})</p>
 			        {% endif -%}
 			        {% endfor -%}
-			    {% endfor -%}
 		</div>
 		<div>
 			<h2>Reviewers:</h2>

@@ -20,8 +20,11 @@ class DailyStatusReport(Report):
 
     @property
     def data(self):
+        stats = db().pull_request_statistics
         return {
-            'stats': db().pull_request_statistics,
+            'stats': stats,
+            'stats_by_tag': {tag: [stat for stat in stats if tag in stat['title_tags']]
+                             for tag in ('RFR', 'WIPTEST', 'WIP')},
             'reviewers_pool_items': sorted(db().get_reviewers_pool().items(),
                                            key=lambda d: len(d[1]['pull_requests']))
         }
