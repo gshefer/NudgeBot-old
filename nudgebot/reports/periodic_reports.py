@@ -5,7 +5,6 @@ from celery.schedules import crontab
 from config import config
 from nudgebot.reports import Report
 from nudgebot.db import db
-from nudgebot.globals import PUBLIC_IP, SERVER_PORT
 
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), 'templates')
@@ -22,7 +21,6 @@ class DailyStatusReport(Report):
     @property
     def data(self):
         return {
-            'stat_url': 'http://{}:{}/statistics'.format(PUBLIC_IP, SERVER_PORT),
             'stats': db().pull_request_statistics,
             'reviewers_pool_items': sorted(db().get_reviewers_pool().items(),
                                            key=lambda d: len(d[1]['pull_requests']))

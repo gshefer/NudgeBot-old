@@ -9,7 +9,6 @@ celery_app = Celery()
 
 @celery_app.on_after_configure.connect
 def setup_periodic_reports(sender, **kwargs):
-    celery_app.control.purge()
     for report_class in Report.get_reports():
         print report_class
         assert isinstance(report_class.CRONTAB, crontab), \
@@ -25,6 +24,7 @@ def setup_periodic_reports(sender, **kwargs):
 def send_report(report_class_name):
     report = getattr(periodic_reports, report_class_name)
     report().send()
+
 
 if __name__ == '__main__':
     celery_app.worker_main(['--loglevel=info', '--beat'])

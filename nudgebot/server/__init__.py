@@ -11,7 +11,6 @@ from nudgebot import NudgeBot
 from nudgebot.lib.github import GithubEnv
 from nudgebot.globals import SERVER_HOST, SERVER_PORT
 from nudgebot.events_handler import EventsHandler
-from nudgebot.tasks import celery_app
 
 logging.basicConfig()
 logger = logging.getLogger('ServerLogger')
@@ -46,6 +45,5 @@ def run():
         NudgeBot().initialize()
     events_handler = EventsHandler()
     events_handler.start()
-    celery_app.worker_main(['--loglevel=info', '--beat'])
     logger.info('Running server...')
     app.run(host=SERVER_HOST, port=SERVER_PORT)

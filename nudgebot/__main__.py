@@ -4,11 +4,13 @@ import github
 
 from config import config
 from nudgebot.db import db
+from nudgebot.tasks import celery_app
 
 
 argparser = argparse.ArgumentParser()
 subparsers = argparser.add_subparsers(help='Operations', dest='operation')
-run_parser = subparsers.add_parser('run', help='Running the Bot')
+run_server_parser = subparsers.add_parser('run_server', help='Running the Bot')
+run_celery_parser = subparsers.add_parser('run_celery', help='Running the celery app')
 dump_db_parser = subparsers.add_parser('dump_db', help='Dumping all the DB content')
 dump_db_parser.add_argument('--filename', '-f', help='The file path to dump the DB content', default=None)
 clear_db_parser = subparsers.add_parser('clear_db', help='Clearing all the DB content (DANGER)')
@@ -21,9 +23,11 @@ if config().config.debug_mode:
 
 
 def parse_command(namespace):
-    if namespace.operation == 'run':
+    if namespace.operation == 'run_server':
         import nudgebot.server as server
         server.run()
+    elif namespace.operation == 'run_celery':
+        celery_app.worker_main(['--loglevel=info', '--beat'])
     elif namespace.operation == 'dump_db':
         print(db().dump(namespace.filename))
     elif namespace.operation == 'clear_db':

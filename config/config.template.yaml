@@ -19,6 +19,6 @@ events_handler:
   use_github_events_proxy: true
   check_timeout_seconds: 60
 reports:
-  daily: <time>  # send the report every day at this time, e.g. 9:00
+  daily: '9:00'  # send the report every day at this time
   receivers:
     - <email>
