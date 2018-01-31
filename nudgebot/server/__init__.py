@@ -6,11 +6,12 @@ import json
 from jinja2 import Template
 
 from common import Age
+from globals import SERVER_HOST, SERVER_PORT
 from nudgebot.db import db
 from nudgebot import NudgeBot
 from nudgebot.lib.github import GithubEnv
-from nudgebot.globals import SERVER_HOST, SERVER_PORT
 from nudgebot.events_handler import EventsHandler
+
 
 logging.basicConfig()
 logger = logging.getLogger('ServerLogger')

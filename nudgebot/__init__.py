@@ -115,6 +115,10 @@ class NudgeBot(object):
             logging.info('event data: pr#{}; sender="{}"'.format(
                 pull_request_number, sender))
             pr = repository.get_pull_request(pull_request_number)
+            if pr.state != 'open':
+                logger.info('Pull request state is "{}": removing statistics...'.format(pr.state))
+                db().remove_pr_stats(pull_request_number)
+                return
             pr_stat = PullRequestStatistics(pr)
             repository.reviewers_pool.update_from_pr_stats(pr_stat)
             self.process(pr_stat)

@@ -1,8 +1,7 @@
 import md5
 import logging
 
-from config import config
-from common import Age
+from common import Age, skip_if_testing_mode
 from nudgebot.lib.github.users import BotUser
 from nudgebot.lib.github.pull_request import PullRequestTitleTag
 from nudgebot.lib import FlowObject
@@ -25,10 +24,9 @@ class Action(FlowObject):
     def __init__(self, *args, **kwargs):
         self.run_type = kwargs.get('run_type', RUN_TYPES.ONCE)
 
+    @skip_if_testing_mode
     def run(self):
         logger.info('Running action: {}'.format(self))
-        if config().config.testing_mode:
-            return
         return self.action()
 
     def action(self):

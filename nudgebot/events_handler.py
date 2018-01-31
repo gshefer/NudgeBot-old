@@ -9,7 +9,7 @@ from common import Singleton, as_local_time
 from nudgebot.lib.github import GithubEnv
 from config import config
 from nudgebot.db import db
-from nudgebot.globals import SERVER_PORT
+from globals import SERVER_PORT
 
 
 logging.basicConfig()

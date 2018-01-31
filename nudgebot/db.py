@@ -102,6 +102,9 @@ class db(object):  # noqa
                 f.write(out)
         return out
 
+    def remove_pr_stats(self, pr_number):
+        self.pr_stats.remove({'number': pr_number})
+
     def update_pr_stats(self, data):
         stat_key = {key: data[key] for key in ('organization', 'repository', 'number')}
         stat_exists = bool([s for s in self.pr_stats.find(stat_key)])

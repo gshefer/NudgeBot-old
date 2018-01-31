@@ -2,6 +2,7 @@ import logging
 
 from cached_property import cached_property
 
+from config import config
 from nudgebot.lib.github.users import ReviewerUser
 from nudgebot.db import db
 
@@ -98,7 +99,8 @@ class ReviewersPool(object):
         reviewer = min(reviewers, key=lambda rev: len(rev[1]['pull_requests']))
         if not reviewer:
             raise Exception()  # TODO: Define appropriate exception
-        self.attach_pr_to_reviewer(reviewer[0], pull_request.number)
+        if not config().config.testing_mode:
+            self.attach_pr_to_reviewer(reviewer[0], pull_request.number)
         return ReviewerUser(reviewer[0])
 
     def attach_pr_to_reviewer(self, reviewer_login, pull_request_number, detach=False):

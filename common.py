@@ -3,6 +3,8 @@ from datetime import datetime
 from dateutil import tz
 import dateparser
 
+from globals import logger as GlobalLogger
+
 
 class ExtendedEnum(Enum):
     @classmethod
@@ -83,3 +85,15 @@ def as_local_time(datetime_obj, tzinfo=None, raise_if_native_time=True):
         return datetime_obj
     local_dt = datetime_obj.astimezone(tz.tzlocal())
     return local_dt.replace(tzinfo=tzinfo)
+
+
+def skip_if_testing_mode(func, *args, **kwargs):
+    """Skipping the decorated function in case of testing mode"""
+    from config import config
+
+    def decorated(self, *args, **kwargs):
+        if config().config.testing_mode:
+            GlobalLogger.info('Skipping function "{}" - running in testing mode.'.format(func.__name__))
+            return
+        return func(self, *args, **kwargs)
+    return decorated
