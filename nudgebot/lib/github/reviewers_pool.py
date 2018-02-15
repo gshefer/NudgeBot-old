@@ -83,9 +83,10 @@ class ReviewersPool(object):
         """Updating the pool from according to the pull request statistics"""
         stat_reviewers = [r.login for r in pr_stats.reviewers]
         for login in self.reviewers:
+            pr_merged = pr_stats.pull_request.state != 'open'
             already_attached = pr_stats.number in self._pool[login]['pull_requests']
             reviewer_was_set = login in stat_reviewers
-            if already_attached and not reviewer_was_set:
+            if already_attached and (not reviewer_was_set or pr_merged):
                 self.attach_pr_to_reviewer(login, pr_stats.number, detach=True)
             elif not already_attached and reviewer_was_set:
                 self.attach_pr_to_reviewer(login, pr_stats.number)

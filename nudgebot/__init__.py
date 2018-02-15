@@ -115,12 +115,12 @@ class NudgeBot(object):
             logging.info('event data: pr#{}; sender="{}"'.format(
                 pull_request_number, sender))
             pr = repository.get_pull_request(pull_request_number)
+            pr_stat = PullRequestStatistics(pr)
+            repository.reviewers_pool.update_from_pr_stats(pr_stat)
             if pr.state != 'open':
                 logger.info('Pull request state is "{}": removing statistics...'.format(pr.state))
                 db().remove_pr_stats(pull_request_number)
                 return
-            pr_stat = PullRequestStatistics(pr)
-            repository.reviewers_pool.update_from_pr_stats(pr_stat)
             self.process(pr_stat)
             # TODO: Find away to 'un-cache' the object so we will not have to re-instantiate
             db().update_pr_stats(PullRequestStatistics(pr).json)
