@@ -27,7 +27,6 @@ class NudgeBot(object):
     __metaclass__ = Singleton
 
     def __init__(self):
-        self.smtp = smtplib.SMTP('localhost')
         self._email_addr = config().credentials.email.address
 
     def send_email(self, receivers, subject, body, attachments=None, text_format='plain'):
@@ -52,7 +51,8 @@ class NudgeBot(object):
                                     .format(attachment))
                     msg.attach(part)
 
-        self.smtp.sendmail(self._email_addr, receivers, msg.as_string())
+        smtp_server = smtplib.SMTP('localhost')
+        smtp_server.sendmail(self._email_addr, receivers, msg.as_string())
 
     def _process_flow(self, pr_stats, tree, cases_properties=None, cases_checksum=None):
         if not cases_checksum:
@@ -93,7 +93,7 @@ class NudgeBot(object):
             for pr in repo.get_pull_requests():
                 pr_stat = PullRequestStatistics(pr)
                 self.process(pr_stat)
-                db().update_pr_stats(pr_stat.json)
+                db().update_pr_stats(pr_stat.get_json())
 
     def _fetch_pr_number(self, json_data):
         pull_request_number = json_data.get('pull_request', {}).get('number')
@@ -123,6 +123,6 @@ class NudgeBot(object):
                 return
             self.process(pr_stat)
             # TODO: Find away to 'un-cache' the object so we will not have to re-instantiate
-            db().update_pr_stats(pr_stat.json)
+            db().update_pr_stats(pr_stat.get_json())
         else:
             logger.info('Event detected as non pull request event...')

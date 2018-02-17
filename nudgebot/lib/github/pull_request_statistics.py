@@ -17,11 +17,11 @@ class PullRequestStatistics(Statistics):
 
     @stat_property
     def title(self):
-        return self.pull_request.title
+        return self._pull_request.title
 
     @stat_property
     def owner(self):
-        return self.pull_request.owner
+        return self._pull_request.owner
 
     @stat_property
     def description(self):
@@ -41,7 +41,7 @@ class PullRequestStatistics(Statistics):
 
     @stat_property
     def org(self):
-        return self.repo.organization or self.repo.owner
+        return self.repo().organization or self.repo().owner
 
     @stat_property
     def commits(self):
@@ -69,7 +69,7 @@ class PullRequestStatistics(Statistics):
 
     @stat_property
     def time_since_last_update(self):
-        return datetime.now() - self.last_update
+        return datetime.now() - self.last_update()
 
     @stat_property
     def title_tags(self):
@@ -90,20 +90,20 @@ class PullRequestStatistics(Statistics):
     @stat_property
     def review_states_by_user(self):
         review_states = {}
-        for review in self.reviews:
+        for review in self.reviews():
             review_states[ReviewerUser(review.user.login)] = review.state
         return review_states
 
     @stat_property
     def last_review_comment(self):
-        review_comments = self.review_comments
+        review_comments = self.review_comments()
         if review_comments:
             return max(review_comments, key=lambda item: (item.updated_at or item.created_at))
 
     @stat_property
     def review_comment_reaction_statuses(self):
         statuses = []
-        review_states = self.review_states_by_user
+        review_states = self.review_states_by_user()
         review_comment_threads = self.pull_request.review_comment_threads
         for thread in review_comment_threads:
             if not thread.outdated:
@@ -114,7 +114,7 @@ class PullRequestStatistics(Statistics):
                     age_seconds = (datetime.now() - last_comment.created_at).total_seconds()
                     statuses.append({
                         'reviewer': reviewer,
-                        'contributor': self.owner,
+                        'contributor': self.owner(),
                         'last_comment': last_comment,
                         'age_seconds': age_seconds
                     })
@@ -128,25 +128,24 @@ class PullRequestStatistics(Statistics):
     def total_review_comment_threads(self):
         return len(self.pull_request.review_comment_threads)
 
-    @property
-    def json(self):
+    def get_json(self):
         """Get the object data as dictionary"""
-        last_review_comment = self.last_review_comment
+        last_review_comment = self.last_review_comment()
         data = {
-            'number': self.number,
-            'title': self.title,
-            'owner': self.owner.login,
-            'description': self.description,
-            'age': self.age,
-            'organization': getattr(self.org, 'login', self.org.name),
-            'repository': self.repo.name,
-            'last_update': self.last_update,
-            'test_results': self.test_results,
-            'title_tags': [tt.name for tt in self.title_tags],
-            'reviewers': [reviewer.login for reviewer in self.reviewers],
-            'review_states_by_user': {user.login: state for user, state in self.review_states_by_user.items()},
-            'total_review_comments': self.total_review_comments,
-            'total_review_comment_threads': self.total_review_comment_threads,
+            'number': self.number(),
+            'title': self.title(),
+            'owner': self.owner().login,
+            'description': self.description(),
+            'age': self.age(),
+            'organization': getattr(self.org(), 'login', self.org().name),
+            'repository': self.repo().name,
+            'last_update': self.last_update(),
+            'test_results': self.test_results(),
+            'title_tags': [tt.name for tt in self.title_tags()],
+            'reviewers': [reviewer.login for reviewer in self.reviewers()],
+            'review_states_by_user': {user.login: state for user, state in self.review_states_by_user().items()},
+            'total_review_comments': self.total_review_comments(),
+            'total_review_comment_threads': self.total_review_comment_threads(),
             'last_review_comment': {'login': '', 'body': '', 'updated_at': ''}
         }
         if last_review_comment:
