@@ -54,24 +54,24 @@ class NudgeBot(object):
 
         self.smtp.sendmail(self._email_addr, receivers, msg.as_string())
 
-    def _process_flow(self, stat_collection, tree, cases_properties=None, cases_checksum=None):
+    def _process_flow(self, pr_stats, tree, cases_properties=None, cases_checksum=None):
         if not cases_checksum:
             cases_checksum = md5.new()
         if cases_properties is None:
             cases_properties = []
         if isinstance(tree, dict):
             for case, node in tree.items():
-                case.load_pr_statistics(stat_collection)
+                case.load_pr_statistics(pr_stats)
                 if case.state:
                     cases_checksum.update(case.hash)
                     cases_properties.append(case.properties)
-                    self._process_flow(stat_collection, node, cases_properties, cases_checksum)
+                    self._process_flow(pr_stats, node, cases_properties, cases_checksum)
         elif isinstance(tree, (list, tuple)):
             for action in tree:
-                self._process_flow(stat_collection, action, cases_properties, cases_checksum)
+                self._process_flow(pr_stats, action, cases_properties, cases_checksum)
         elif isinstance(tree, Action):
             action = tree
-            action.load_pr_statistics(stat_collection)
+            action.load_pr_statistics(pr_stats)
             is_done = ([record for record in db().records.find({
                            'cases_checksum': cases_checksum.hexdigest(),
                            'action.checksum': action.hash})
@@ -123,6 +123,6 @@ class NudgeBot(object):
                 return
             self.process(pr_stat)
             # TODO: Find away to 'un-cache' the object so we will not have to re-instantiate
-            db().update_pr_stats(PullRequestStatistics(pr).json)
+            db().update_pr_stats(pr_stat.json)
         else:
             logger.info('Event detected as non pull request event...')

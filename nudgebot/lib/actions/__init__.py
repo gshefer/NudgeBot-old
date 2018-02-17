@@ -27,14 +27,15 @@ class Action(FlowObject):
     @skip_if_testing_mode
     def run(self):
         logger.info('Running action: {}'.format(self))
-        return self.action()
+        self.action()
+        self._pr_statistics.uncache_all()
 
     def action(self):
         raise NotImplementedError()
 
     def _md5(self, *strings):
         checksum = md5.new()
-        checksum.update(str(self._pr_statistics.number))
+        checksum.update(str(self._pr_statistics.number()))
         for str_ in strings:
             checksum.update(str(str_))
         return checksum.hexdigest()
@@ -80,7 +81,7 @@ class AddReviewer(Action):
 
     def action(self):
         if not self.reviewer:
-            self.reviewer = self._pr_statistics.repo.reviewers_pool.pull_reviewer(
+            self.reviewer = self._pr_statistics.repo().reviewers_pool.pull_reviewer(
                 self.level, self._pr_statistics.pull_request)
         self._pr_statistics.pull_request.add_reviewers([self.reviewer])
 
@@ -129,7 +130,7 @@ class _ReviewStateActionBase(Action):
     def action(self):
         self._pr_statistics.pull_request.add_reviewers([self._github_obj])
         self._pr_statistics.pull_request.create_review(
-            list(self._pr_statistics.commits)[-1], self.body or self.STATE, self.event)
+            list(self._pr_statistics.commits())[-1], self.body or self.STATE, self.event)
 
     @property
     def hash(self):
@@ -154,7 +155,7 @@ class CreateReviewComment(Action):
         Action.__init__(self, **kwargs)
 
     def action(self):
-        commit = list(self._pr_statistics.commits)[-1]
+        commit = list(self._pr_statistics.commits())[-1]
         self._pr_statistics.pull_request.create_review_comment(
             self.body, commit, self.path, self.position)
 
@@ -200,7 +201,7 @@ class SendEmailToUsers(Action):
 class ReportForInactivity(Action):
 
     def action(self):
-        last_update = Age(self._pr_statistics.last_update)
+        last_update = Age(self._pr_statistics.last_update())
         self._pr_statistics.pull_request.create_issue_comment(
             ('Pull request is inactive for {}- please do'
              ' some action, update it or close it').format(last_update.pretty)
@@ -208,7 +209,7 @@ class ReportForInactivity(Action):
 
     @property
     def hash(self):
-        return self._md5(self._pr_statistics.last_update)
+        return self._md5(self._pr_statistics.last_update())
 
 
 class AskForReviewCommentReactions(Action):
@@ -221,7 +222,7 @@ class AskForReviewCommentReactions(Action):
     def action(self):
         # TODO: convert to age
         emails_content, receviers = 'The following action required for this PR:\n', set()
-        for status in self._pr_statistics.review_comment_reaction_statuses:
+        for status in self._pr_statistics.review_comment_reaction_statuses():
             if status['age_seconds'] > (self.days * 86400 + self.hours * 3600):
                 days = int(status['age_seconds']) / 86400
                 hours = (int(status['age_seconds']) - days * 86400) / 3600
@@ -251,7 +252,7 @@ class AskForReviewCommentReactions(Action):
         if not receviers:
             return
         receviers = list(receviers)
-        subject = 'PR#{} is waiting for response'.format(self._pr_statistics.number)
+        subject = 'PR#{} is waiting for response'.format(self._pr_statistics.number())
         from nudgebot import NudgeBot
         NudgeBot().send_email(receviers, subject, emails_content)
 

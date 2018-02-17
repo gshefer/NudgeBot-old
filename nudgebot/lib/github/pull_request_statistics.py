@@ -3,9 +3,10 @@ from datetime import datetime
 from cached_property import cached_property
 
 from nudgebot.lib.github.users import ReviewerUser
+from nudgebot.lib.statistics import Statistics, stat_property
 
 
-class PullRequestStatistics(object):
+class PullRequestStatistics(Statistics):
 
     def __init__(self, pull_request):
         self._pull_request = pull_request
@@ -14,92 +15,92 @@ class PullRequestStatistics(object):
     def pull_request(self):
         return self._pull_request
 
-    @cached_property
+    @stat_property
     def title(self):
         return self.pull_request.title
 
-    @cached_property
+    @stat_property
     def owner(self):
         return self.pull_request.owner
 
-    @cached_property
+    @stat_property
     def description(self):
         return self._pull_request.description
 
-    @cached_property
+    @stat_property
     def age(self):
         return self._pull_request.created_at
 
-    @cached_property
+    @stat_property
     def number(self):
         return self._pull_request.number
 
-    @cached_property
+    @stat_property
     def repo(self):
         return self._pull_request.repo
 
-    @cached_property
+    @stat_property
     def org(self):
         return self.repo.organization or self.repo.owner
 
-    @cached_property
+    @stat_property
     def commits(self):
         return self._pull_request.commits
 
-    @cached_property
+    @stat_property
     def issue_comments(self):
         return self._pull_request.issue_comments
 
-    @cached_property
+    @stat_property
     def review_comments(self):
         return self._pull_request.review_comments
 
-    @cached_property
+    @stat_property
     def test_results(self):
         return self._pull_request.test_results
 
-    @cached_property
+    @stat_property
     def last_code_update(self):
         return self._pull_request.last_code_update
 
-    @cached_property
+    @stat_property
     def last_update(self):
         return self._pull_request.last_update
 
-    @cached_property
+    @stat_property
     def time_since_last_update(self):
         return datetime.now() - self.last_update
 
-    @cached_property
+    @stat_property
     def title_tags(self):
         return self._pull_request.title_tags
 
-    @cached_property
+    @stat_property
     def reviews(self):
         return self._pull_request.reviews
 
-    @cached_property
+    @stat_property
     def reviewer_requests(self):
         return self.pull_request.get_reviewer_requests()
 
-    @cached_property
+    @stat_property
     def reviewers(self):
         return self._pull_request.reviewers
 
-    @cached_property
+    @stat_property
     def review_states_by_user(self):
         review_states = {}
         for review in self.reviews:
             review_states[ReviewerUser(review.user.login)] = review.state
         return review_states
 
-    @cached_property
+    @stat_property
     def last_review_comment(self):
         review_comments = self.review_comments
         if review_comments:
             return max(review_comments, key=lambda item: (item.updated_at or item.created_at))
 
-    @cached_property
+    @stat_property
     def review_comment_reaction_statuses(self):
         statuses = []
         review_states = self.review_states_by_user
@@ -119,11 +120,11 @@ class PullRequestStatistics(object):
                     })
         return statuses
 
-    @cached_property
+    @stat_property
     def total_review_comments(self):
         return len(self.pull_request.review_comments)
 
-    @cached_property
+    @stat_property
     def total_review_comment_threads(self):
         return len(self.pull_request.review_comment_threads)
 
