@@ -81,7 +81,7 @@ class ReviewersPool(object):
 
     def update_from_pr_stats(self, pr_stats):
         """Updating the pool from according to the pull request statistics"""
-        stat_reviewers = [r.login for r in pr_stats.reviewers]
+        stat_reviewers = [r.login for r in pr_stats.reviewers()]
         for login in self.reviewers:
             pr_merged = pr_stats.pull_request.state != 'open'
             already_attached = pr_stats.number() in self._pool[login]['pull_requests']
