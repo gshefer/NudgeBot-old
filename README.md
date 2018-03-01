@@ -3,6 +3,12 @@
 NudgeBot is a Pull request review and repository tracking bot which collect statistics and perform actions in a Github repository.
 
 It's called "NudgeBot" since origininally it used to "nudge" reviewers to review pull request after some period without comment.
+
+_______________________
+
+__Note__: :hand: _This project is still not a generic framework (not enough). Currently it's under development and in use and tested internaly._ :hand:
+_______________________
+
 ## Functionality:
 - Perform actions in the pull request, i.e. add reviewers, post comment, etc.
 - Collect pull requests statistics and repository statistics.
