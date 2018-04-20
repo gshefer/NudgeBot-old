@@ -15,8 +15,8 @@ _______________________
 - Sends reports to the repository maintainers.
 - Provides a live dashboard which presents the current statistics/status of the review process. E.g.
 
-  ![alt text](https://raw.githubusercontent.com/gshefer/NudgeBot/master/doc/reviewers_pool_table.png)
-  ![alt text](https://raw.githubusercontent.com/gshefer/NudgeBot/master/doc/pull_request_statistics_table.png)
+  ![alt text](https://raw.githubusercontent.com/gshefer/NudgeBot-old/master/doc/reviewers_pool_table.png)
+  ![alt text](https://raw.githubusercontent.com/gshefer/NudgeBot-old/master/doc/pull_request_statistics_table.png)
 
 ## Design:
 ### Base components:
